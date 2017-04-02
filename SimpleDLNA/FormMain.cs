@@ -1,4 +1,11 @@
-﻿using System;
+﻿using log4net;
+using log4net.Appender;
+using log4net.Config;
+using log4net.Core;
+using log4net.Layout;
+using NMaier.SimpleDlna.GUI.Properties;
+using NMaier.SimpleDlna.Server;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,13 +16,6 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Forms;
 using System.Xml.Serialization;
-using log4net;
-using log4net.Appender;
-using log4net.Config;
-using log4net.Core;
-using log4net.Layout;
-using NMaier.SimpleDlna.GUI.Properties;
-using NMaier.SimpleDlna.Server;
 using Form = NMaier.Windows.Forms.Form;
 using Timer = System.Timers.Timer;
 

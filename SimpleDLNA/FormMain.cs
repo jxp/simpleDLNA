@@ -11,7 +11,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Forms;
@@ -524,10 +526,10 @@ namespace NMaier.SimpleDlna.GUI
 #if DEBUG
       log.Info("Debug mode / Skipping one-instance-only stuff");
 #else
-      if (SystemInformation.IsRunningOnMono()) {
+      /*if (SystemInformation.IsRunningOnMono()) {
         // XXX Mono sometimes stack overflows for whatever reason.
         return;
-      }
+      }*/
       new Thread(() =>
       {
         for (;;) {

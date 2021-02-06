@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using log4net;
@@ -16,6 +16,7 @@ namespace NMaier.SimpleDlna
   internal class Options : GetOpt
   {
     [Argument("cache", HelpVar = "file", HelpText = "Cache file to use for storing meta data (default: none)")] [ShortArgument('c')] public FileInfo CacheFile = null;
+    [Argument("mkvtools", HelpVar = "Directory", HelpText = "Directory location of MKVToolnix (default: none)")] [ShortArgument('c')] public FileInfo MKVTools = null;
 
     [Argument("sort-descending", HelpText = "Sort order; see --list-sort-orders")] [ShortArgument('d')] [FlagArgument(true)] public bool DescendingOrder = false;
 

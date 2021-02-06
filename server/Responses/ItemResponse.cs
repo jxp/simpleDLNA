@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using NMaier.SimpleDlna.Server.Metadata;
 using NMaier.SimpleDlna.Utilities;
@@ -23,6 +23,7 @@ namespace NMaier.SimpleDlna.Server
       }
       headers.Add("Accept-Ranges", "bytes");
       headers.Add("Content-Type", DlnaMaps.Mime[item.Type]);
+
       if (request.Headers.ContainsKey("getcontentFeatures.dlna.org")) {
         try {
           headers.Add(

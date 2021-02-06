@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -30,9 +30,9 @@ namespace NMaier.SimpleDlna.Server
     {
     }
 
-    public Subtitle(FileInfo file)
+    public Subtitle(FileInfo file, bool fileOnly = false)
     {
-      Load(file);
+      Load(file, fileOnly);
     }
 
     public Subtitle(string text)
@@ -125,21 +125,23 @@ namespace NMaier.SimpleDlna.Server
       throw new NotImplementedException();
     }
 
-    private void Load(FileInfo file)
+    private void Load(FileInfo file, bool fileOnly)
     {
       try {
-        // Try external
+        // Try external file types for subtitle
         foreach (var i in exts) {
           var sti = new FileInfo(
+            // Look for movie.sub type file name
             System.IO.Path.ChangeExtension(file.FullName, i));
           try {
             if (!sti.Exists) {
+              // Also look for movie.vid.sub type file name
               sti = new FileInfo(file.FullName + i);
             }
             if (!sti.Exists) {
               continue;
             }
-            text = FFmpeg.GetSubtitleSubrip(sti);
+            text = FFmpeg.GetSubtitleSubrip(sti, true);
             logger.DebugFormat("Loaded subtitle from {0}", sti.FullName);
           }
           catch (NotSupportedException) {
@@ -148,15 +150,24 @@ namespace NMaier.SimpleDlna.Server
             logger.Debug($"Failed to get subtitle from {sti.FullName}", ex);
           }
         }
-        try {
-          text = FFmpeg.GetSubtitleSubrip(file);
-          logger.DebugFormat("Loaded subtitle from {0}", file.FullName);
-        }
-        catch (NotSupportedException ex) {
-          logger.Debug($"Subtitle not supported {file.FullName}", ex);
-        }
-        catch (Exception ex) {
-          logger.Debug($"Failed to get subtitle from {file.FullName}", ex);
+
+        // Inspect the video file for subtitles
+        if (string.IsNullOrEmpty(text) && !fileOnly)
+        {
+          try
+          {
+            text = FFmpeg.GetSubtitleSubrip(file, false);
+            logger.DebugFormat("Loaded subtitle from {0}", file.FullName);
+          }
+          catch (NotSupportedException ex)
+          {
+            logger.Debug($"Subtitle not supported {file.FullName}", ex);
+          }
+          catch (Exception ex)
+          {
+            logger.Debug($"Failed to get subtitle from {file.FullName}", ex);
+          }
+
         }
       }
       catch (Exception ex) {

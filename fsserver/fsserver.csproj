@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>NMaier.SimpleDlna.FileMediaServer</RootNamespace>
     <AssemblyName>SimpleDlna.FileMediaServer</AssemblyName>
-    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -68,6 +68,7 @@
     </Compile>
     <Compile Include="ExtensionFilter.cs" />
     <Compile Include="Files\DeserializeInfo.cs" />
+    <Compile Include="Files\FilePicture.cs" />
     <Compile Include="Files\FileReadStream.cs" />
     <Compile Include="FileStore.cs" />
     <Compile Include="Files\AudioFile.cs" />

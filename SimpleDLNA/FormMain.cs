@@ -1,4 +1,4 @@
-﻿using log4net;
+using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
@@ -82,9 +82,18 @@ namespace NMaier.SimpleDlna.GUI
       StartPipeNotification();
 
       notifyIcon.Icon = Icon;
+
       if (!string.IsNullOrWhiteSpace(config.cache)) {
-        cacheFile = new FileInfo(config.cache);
+        if (Directory.Exists(config.cache))
+        {
+          cacheFile = new FileInfo(Path.Combine(config.cache, "sdlna.cache"));
+        } else
+        {
+          cacheFile = new FileInfo(config.cache);
+        }
       }
+
+      Utilities.MKVTools.Initialise(config.mkvTools);
       CreateHandle();
       SetupServer();
     }

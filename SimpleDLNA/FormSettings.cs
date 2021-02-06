@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using NMaier.SimpleDlna.GUI.Properties;
 using Form = NMaier.Windows.Forms.Form;
@@ -42,5 +42,10 @@ namespace NMaier.SimpleDlna.GUI
         startUpUtilities.UninstallAutoRun(APP_KEY_NAME);
       }
     }
-  }
+
+        private void buttonOK_Click(object sender, EventArgs e)
+        {
+            Utilities.MKVTools.Initialise(textMKVToolsDirectory.Text);
+        }
+    }
 }

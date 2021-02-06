@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Timers;
 using log4net;
 using NMaier.SimpleDlna.Server.Ssdp;
@@ -257,7 +258,15 @@ namespace NMaier.SimpleDlna.Server
 
       foreach (var address in IP.ExternalIPAddresses) {
         DebugFormat("Registering device for {0}", address);
-        var deviceGuid = Guid.NewGuid();
+
+        // Setup initial byes based on server and machine
+        var macBytes = HexadecimalStringToByteArray(IP.GetMAC(address).Replace(":", ""));
+        var addressByte = (byte)(address.Address % 256);
+        var serverBytes = MD5Hash(server.FriendlyName);
+        var guidBytes = macBytes.Concat(new byte[]{ addressByte }).Concat(serverBytes.Take(16 - 1 - macBytes.Length)).ToArray();
+
+        var lguid = new Guid(guidBytes);
+        var deviceGuid = lguid;
         var list = devicesForServers.GetOrAdd(guid, new List<Guid>());
         lock (list) {
           list.Add(deviceGuid);
@@ -268,6 +277,23 @@ namespace NMaier.SimpleDlna.Server
           ssdpServer.RegisterNotification(deviceGuid, uri, address);
         }
         NoticeFormat("New mount at: {0}", uri);
+      }
+    }
+
+    private static byte[] HexadecimalStringToByteArray(string input)
+    {
+      var outputLength = input.Length / 2;
+      var output = new byte[outputLength];
+      for (var i = 0; i < outputLength; i++)
+        output[i] = Convert.ToByte(input.Substring(i * 2, 2), 16);
+      return output;
+    }
+
+    private static byte[] MD5Hash(string input)
+    {
+      using (var hash = MD5.Create())
+      {
+        return hash.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
       }
     }
 

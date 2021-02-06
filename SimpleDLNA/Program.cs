@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO.Pipes;
 using System.Threading;
 using System.Windows.Forms;
@@ -26,7 +26,6 @@ namespace NMaier.SimpleDlna.GUI
         }
         GC.Collect();
 #endif
-
         using (var main = new FormMain()) {
           try {
             Application.Run(main);
@@ -44,7 +43,7 @@ namespace NMaier.SimpleDlna.GUI
             );
             throw;
           }
-        }
+        } 
       }
     }
   }

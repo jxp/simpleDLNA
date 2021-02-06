@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
@@ -77,6 +77,15 @@ namespace NMaier.SimpleDlna.FileMediaServer
     internal VideoFile(FileServer server, FileInfo aFile, DlnaMime aType)
       : base(server, aFile, aType, DlnaMediaTypes.Video)
     {
+      // access the subtitle property when loading
+      //  Some players need this early to work properly
+      TryLoadSubtitle(true);
+      if (!this.subTitle.HasSubtitle)
+      {
+        // Loading an external subtitle file early failed
+        // Reset for possible internal subtitle loading
+        this.subTitle = null;
+      }
     }
 
     public long? Bookmark
@@ -180,18 +189,27 @@ namespace NMaier.SimpleDlna.FileMediaServer
     public Subtitle Subtitle
     {
       get {
-        try {
-          if (subTitle == null) {
-            subTitle = new Subtitle(Item);
-            Server.UpdateFileCache(this);
-          }
-        }
-        catch (Exception ex) {
-          Error("Failed to look up subtitle", ex);
-          subTitle = new Subtitle();
-        }
+        TryLoadSubtitle();
         return subTitle;
       }
+    }
+
+    private void TryLoadSubtitle(bool fileOnly = false)
+    {
+      try
+      {
+        if (subTitle == null)
+        {
+          subTitle = new Subtitle(Item, fileOnly);
+          Server.UpdateFileCache(this);
+        }
+      }
+      catch (Exception ex)
+      {
+        Error("Failed to look up subtitle", ex);
+        subTitle = new Subtitle();
+      }
+
     }
 
     public override string Title

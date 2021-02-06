@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -38,8 +39,7 @@ namespace NMaier.SimpleDlna.Utilities
       @"Video: .+ ([0-9]{2,})x([0-9]{2,}) ", RegexOptions.Compiled);
 
     public static readonly string FFmpegExecutable =
-      FindExecutable("ffmpeg");
-
+          FindExecutable("ffmpeg");
     private static DirectoryInfo GetFFMpegFolder(
       Environment.SpecialFolder folder)
     {
@@ -51,48 +51,63 @@ namespace NMaier.SimpleDlna.Utilities
     {
       var os = Environment.OSVersion.Platform.ToString().ToUpperInvariant();
       var isWin = os.Contains("WIN");
-      if (isWin) {
+      if (isWin)
+      {
         executable += ".exe";
       }
       var places = new List<DirectoryInfo>();
       var assemblyLoc = Assembly.GetExecutingAssembly().Location;
-      if (assemblyLoc != null) {
+      if (assemblyLoc != null)
+      {
         places.Add(new FileInfo(assemblyLoc).Directory);
       }
-      try {
+      try
+      {
         var ffhome = Environment.GetEnvironmentVariable("FFMPEG_HOME");
-        if (!string.IsNullOrWhiteSpace(ffhome)) {
+        if (!string.IsNullOrWhiteSpace(ffhome))
+        {
           places.Add(new DirectoryInfo(ffhome));
         }
       }
-      catch (Exception) {
+      catch (Exception)
+      {
         // ignored
       }
-      foreach (var l in specialLocations) {
-        try {
+
+      foreach (var l in specialLocations)
+      {
+        try
+        {
           places.Add(l);
         }
-        catch (Exception) {
+        catch (Exception)
+        {
           // ignored
         }
       }
       var envpath = Environment.GetEnvironmentVariable("PATH");
-      if (!string.IsNullOrWhiteSpace(envpath)) {
+      if (!string.IsNullOrWhiteSpace(envpath))
+      {
         foreach (var p in envpath.
-          Split(isWin ? ';' : ':')) {
-          try {
+          Split(isWin ? ';' : ':'))
+        {
+          try
+          {
             places.Add(new DirectoryInfo(p.Trim()));
           }
-          catch (Exception) {
+          catch (Exception)
+          {
             // ignored
           }
         }
       }
 
-      foreach (var i in places) {
-        LogManager.GetLogger(typeof (FFmpeg)).DebugFormat(
+      foreach (var i in places)
+      {
+        LogManager.GetLogger(typeof(FFmpeg)).DebugFormat(
           "Searching {0}", i.FullName);
-        if (!i.Exists) {
+        if (!i.Exists)
+        {
           continue;
         }
         var folders = new[]
@@ -100,12 +115,19 @@ namespace NMaier.SimpleDlna.Utilities
           i,
           new DirectoryInfo(Path.Combine(i.FullName, "bin"))
         };
-        foreach (var di in folders) {
-          try {
-            var r = di.GetFiles(executable, SearchOption.TopDirectoryOnly);
-            if (r.Length != 0) {
+        foreach (var di in folders)
+        {
+          try
+          {
+            var r = new FileInfo[0];
+            if (di.Exists)
+            {
+              r = di.GetFiles(executable, SearchOption.TopDirectoryOnly);
+            }
+            if (r.Length != 0)
+            {
               var rv = r[0];
-              LogManager.GetLogger(typeof (FFmpeg)).InfoFormat(
+              LogManager.GetLogger(typeof(FFmpeg)).InfoFormat(
                 "Found {0} at {1}",
                 executable,
                 rv.FullName
@@ -113,12 +135,13 @@ namespace NMaier.SimpleDlna.Utilities
               return rv.FullName;
             }
           }
-          catch (Exception) {
+          catch (Exception)
+          {
             // ignored
           }
         }
       }
-      LogManager.GetLogger(typeof (FFmpeg)).WarnFormat(
+      LogManager.GetLogger(typeof(FFmpeg)).WarnFormat(
         "Did not find {0}", executable);
       return null;
     }
@@ -126,20 +149,25 @@ namespace NMaier.SimpleDlna.Utilities
     private static IDictionary<string, string> IdentifyFileInternal(
       FileInfo file)
     {
-      if (FFmpegExecutable == null) {
+      if (FFmpegExecutable == null)
+      {
         throw new NotSupportedException();
       }
-      if (file == null) {
+      if (file == null)
+      {
         throw new ArgumentNullException(nameof(file));
       }
       IDictionary<string, string> rv;
-      if (infoCache.TryGetValue(file, out rv)) {
+      if (infoCache.TryGetValue(file, out rv))
+      {
         return rv;
       }
-      try {
+      try
+      {
         return IdentifyInternalFromProcess(file);
       }
-      catch (Exception ex) {
+      catch (Exception ex)
+      {
         throw new NotSupportedException(ex.Message, ex);
       }
     }
@@ -147,7 +175,8 @@ namespace NMaier.SimpleDlna.Utilities
     private static IDictionary<string, string> IdentifyInternalFromProcess(
       FileInfo file)
     {
-      using (var p = new Process()) {
+      using (var p = new Process())
+      {
         var sti = p.StartInfo;
 #if !DEBUG
         sti.CreateNoWindow = true;
@@ -160,28 +189,35 @@ namespace NMaier.SimpleDlna.Utilities
         p.Start();
         IDictionary<string, string> rv = new Dictionary<string, string>();
 
-        using (var reader = new StreamReader(StreamManager.GetStream())) {
+        using (var reader = new StreamReader(StreamManager.GetStream()))
+        {
           using (var pump = new StreamPump(
-            p.StandardError.BaseStream, reader.BaseStream, 4096)) {
+            p.StandardError.BaseStream, reader.BaseStream, 4096))
+          {
             pump.Pump(null);
-            if (!p.WaitForExit(3000)) {
+            if (!p.WaitForExit(3000))
+            {
               throw new NotSupportedException("ffmpeg timed out");
             }
-            if (!pump.Wait(1000)) {
+            if (!pump.Wait(1000))
+            {
               throw new NotSupportedException("ffmpeg pump timed out");
             }
             reader.BaseStream.Seek(0, SeekOrigin.Begin);
 
             var output = reader.ReadToEnd();
             var match = regDuration.Match(output);
-            if (match.Success) {
+            if (match.Success)
+            {
               int h, m, s;
               if (int.TryParse(match.Groups[1].Value, out h) &&
                   int.TryParse(match.Groups[2].Value, out m) &&
-                  int.TryParse(match.Groups[3].Value, out s)) {
+                  int.TryParse(match.Groups[3].Value, out s))
+              {
                 int ms;
                 if (match.Groups.Count < 5 ||
-                    !int.TryParse(match.Groups[4].Value, out ms)) {
+                    !int.TryParse(match.Groups[4].Value, out ms))
+                {
                   ms = 0;
                 }
                 var ts = new TimeSpan(0, h, m, s, ms * 10);
@@ -191,17 +227,20 @@ namespace NMaier.SimpleDlna.Utilities
               }
             }
             match = regDimensions.Match(output);
-            if (match.Success) {
+            if (match.Success)
+            {
               int w, h;
               if (int.TryParse(match.Groups[1].Value, out w) &&
-                  int.TryParse(match.Groups[2].Value, out h)) {
+                  int.TryParse(match.Groups[2].Value, out h))
+              {
                 rv.Add("VIDEO_WIDTH", w.ToString());
                 rv.Add("VIDEO_HEIGHT", h.ToString());
               }
             }
           }
         }
-        if (rv.Count == 0) {
+        if (rv.Count == 0)
+        {
           throw new NotSupportedException("File not supported");
         }
         return rv;
@@ -216,7 +255,8 @@ namespace NMaier.SimpleDlna.Utilities
           && IdentifyFile(file).TryGetValue("VIDEO_HEIGHT", out sh)
           && int.TryParse(sw, out w)
           && int.TryParse(sh, out h)
-          && w > 0 && h > 0) {
+          && w > 0 && h > 0)
+      {
         return new Size(w, h);
       }
       throw new NotSupportedException();
@@ -225,28 +265,39 @@ namespace NMaier.SimpleDlna.Utilities
     public static double GetFileDuration(FileInfo file)
     {
       string sl;
-      if (IdentifyFile(file).TryGetValue("LENGTH", out sl)) {
+      if (IdentifyFile(file).TryGetValue("LENGTH", out sl))
+      {
         double dur;
         var valid = double.TryParse(
           sl, NumberStyles.AllowDecimalPoint,
           CultureInfo.GetCultureInfo("en-US", "en"), out dur);
-        if (valid && dur > 0) {
+        if (valid && dur > 0)
+        {
           return dur;
         }
       }
       throw new NotSupportedException();
     }
 
-    public static string GetSubtitleSubrip(FileInfo file)
+    public static string GetSubtitleSubrip(FileInfo file, bool externalFile)
     {
-      if (FFmpegExecutable == null) {
+      if (externalFile)
+      {
+        return File.ReadAllText(file.FullName);
+      }
+
+      if (FFmpegExecutable == null)
+      {
         throw new NotSupportedException();
       }
-      if (file == null) {
+      if (file == null)
+      {
         throw new ArgumentNullException(nameof(file));
       }
-      try {
-        using (var p = new Process()) {
+      try
+      {
+        using (var p = new Process())
+        {
           var sti = p.StartInfo;
 #if !DEBUG
           sti.CreateNoWindow = true;
@@ -259,36 +310,44 @@ namespace NMaier.SimpleDlna.Utilities
           p.Start();
 
           var lastPosition = 0L;
-          using (var reader = new StreamReader(StreamManager.GetStream())) {
+          using (var reader = new StreamReader(StreamManager.GetStream()))
+          {
             using (var pump = new StreamPump(
-              p.StandardOutput.BaseStream, reader.BaseStream, 100)) {
+              p.StandardOutput.BaseStream, reader.BaseStream, 100))
+            {
               pump.Pump(null);
-              while (!p.WaitForExit(20000)) {
-                if (lastPosition != reader.BaseStream.Position) {
+              while (!p.WaitForExit(20000))
+              {
+                if (lastPosition != reader.BaseStream.Position)
+                {
                   lastPosition = reader.BaseStream.Position;
                   continue;
                 }
                 p.Kill();
                 throw new NotSupportedException("ffmpeg timed out");
               }
-              if (!pump.Wait(2000)) {
+              if (!pump.Wait(2000))
+              {
                 throw new NotSupportedException("ffmpeg pump timed out");
               }
               reader.BaseStream.Seek(0, SeekOrigin.Begin);
 
               var rv = string.Empty;
               string line;
-              while ((line = reader.ReadLine()) != null) {
+              while ((line = reader.ReadLine()) != null)
+              {
                 rv += regAssStrip.Replace(line.Trim(), string.Empty) + "\n";
               }
-              if (!string.IsNullOrWhiteSpace(rv)) {
+              if (!string.IsNullOrWhiteSpace(rv))
+              {
                 return rv;
               }
             }
           }
         }
       }
-      catch (Exception ex) {
+      catch (Exception ex)
+      {
         throw new NotSupportedException(ex.Message, ex);
       }
       throw new NotSupportedException(
@@ -297,7 +356,8 @@ namespace NMaier.SimpleDlna.Utilities
 
     public static IDictionary<string, string> IdentifyFile(FileInfo file)
     {
-      if (FFmpegExecutable != null) {
+      if (FFmpegExecutable != null)
+      {
         return IdentifyFileInternal(file);
       }
       throw new NotSupportedException();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -371,13 +371,17 @@ namespace NMaier.SimpleDlna.Server
           throw new HttpStatusException(HttpCode.Denied);
         }
         if (string.IsNullOrEmpty(Path)) {
-          throw new HttpStatusException(HttpCode.NotFound);
+          response = error404.HandleRequest(this);
+          //throw new HttpStatusException(HttpCode.NotFound);
+        } else
+        {
+          var handler = owner.FindHandler(Path);
+          if (handler == null)
+          {
+            throw new HttpStatusException(HttpCode.NotFound);
+          }
+          response = handler.HandleRequest(this);
         }
-        var handler = owner.FindHandler(Path);
-        if (handler == null) {
-          throw new HttpStatusException(HttpCode.NotFound);
-        }
-        response = handler.HandleRequest(this);
         if (response == null) {
           throw new ArgumentException("Handler did not return a response");
         }

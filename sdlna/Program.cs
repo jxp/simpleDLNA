@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -72,6 +72,7 @@ namespace NMaier.SimpleDlna
         Console.CancelKeyPress += CancelKeyPressed;
 
         options.Parse(args);
+        MKVTools.Initialise(options.MKVTools.DirectoryName);
         if (options.ShowHelp) {
           options.PrintUsage();
           return;

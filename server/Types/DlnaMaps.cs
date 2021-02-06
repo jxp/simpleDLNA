@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -97,6 +97,7 @@ namespace NMaier.SimpleDlna.Server
       {DlnaMime.ImageJPEG, "image/jpeg"},
       {DlnaMime.ImagePNG, "image/png"},
       {DlnaMime.SubtitleSRT, "smi/caption"},
+      {DlnaMime.SubtitleSRT2, "text/srt"},
       {DlnaMime.Video3GPP, "video/3gpp"},
       {DlnaMime.VideoAVC, "video/mp4"},
       {DlnaMime.VideoAVI, "video/avi"},
@@ -367,7 +368,11 @@ namespace NMaier.SimpleDlna.Server
         var e = (from ext in i
                  select ext.ToUpperInvariant()).ToList();
         try {
-          Media2Ext.Add(t, e);
+          if (Media2Ext.ContainsKey(t))
+          { Media2Ext[t].AddRange(e); }
+          else { 
+            Media2Ext.Add(t, e);
+          }
         }
         catch (ArgumentException) {
           Media2Ext[t].AddRange(e);

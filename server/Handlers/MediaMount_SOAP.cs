@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
@@ -101,6 +101,36 @@ namespace NMaier.SimpleDlna.Server
       }
     }
 
+    private void AddSubtitle(IRequest request, IMediaResource resource,
+                  XmlElement item)
+    {
+      var result = item.OwnerDocument;
+      var video = resource as IMediaVideoResource;
+      if (video == null)
+      {
+        return;
+      }
+      try
+      {
+        if (video.Subtitle.HasSubtitle)
+        {
+          var subtitle = result.CreateElement(string.Empty, "res", NS_DIDL);
+          subtitle.InnerText = String.Format(
+              "http://{0}:{1}{2}subtitle/{3}/st.srt",
+              request.LocalEndPoint.Address,
+              request.LocalEndPoint.Port,
+              Prefix,
+              resource.Id
+          );
+          subtitle.SetAttribute("protocolInfo", "http-get:*:text/srt:*");
+          item.AppendChild(subtitle);
+        }
+      }
+      catch (Exception)
+      {
+        return;
+      }
+    }
     private static void AddGeneralProperties(IHeaders props, XmlElement item)
     {
       string prop;
@@ -279,6 +309,7 @@ namespace NMaier.SimpleDlna.Server
                                          ));
       item.AppendChild(res);
 
+      AddSubtitle(request, resource, item);
       AddCover(request, resource, item);
       result.DocumentElement?.AppendChild(item);
     }

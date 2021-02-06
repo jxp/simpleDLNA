@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.Serialization;
+using NMaier.SimpleDlna.FileMediaServer.Files;
 using NMaier.SimpleDlna.Server;
 using TagLib;
 using File = TagLib.File;
@@ -220,6 +221,46 @@ namespace NMaier.SimpleDlna.FileMediaServer
           break;
         }
       }
+
+      // Check for art in the files folder
+      var maybeAlbumFolder = false;
+      if (pic == null)
+      {
+        var fileGuid = string.Empty;
+        // We could check all files with the same extension all have the same artist or album
+        // For now just check if we have 20 or less files with the same extension
+        if (Item.Directory.GetFiles("*" + Item.Extension).Length <= 20)
+        {
+          maybeAlbumFolder = true;
+        }
+
+        if (tag.TagTypes.HasFlag(TagTypes.Id3v2))
+        {
+          File tagv2File = File.Create(Item.FullName);
+          var tag2 = (TagLib.Id3v2.Tag)tagv2File.GetTag(TagTypes.Id3v2);
+
+          var pvt = TagLib.Id3v2.PrivateFrame.Get(tag2, "WM/WMCollectionID", false);
+          if (pvt != null)
+          {
+            var albumGuid = new Guid(pvt.PrivateData.Data);
+            fileGuid = albumGuid.ToString();
+          }
+        }
+
+        if (maybeAlbumFolder || !string.IsNullOrEmpty(fileGuid))
+        {
+          var largeFiles = Directory.GetFiles(Item.Directory.FullName, "AlbumArt*" + fileGuid + "*Large.jpg");
+          if (largeFiles.Length > 0)
+          {
+            pic = new FilePicture(new FileInfo(largeFiles[0]));
+          }
+        }
+      }
+
+      if (pic == null && maybeAlbumFolder && System.IO.File.Exists(System.IO.Path.Combine(Item.Directory.FullName, "Folder.jpg"))) {
+        pic = new FilePicture(Item);
+      }
+
       if (pic != null) {
         try {
           CachedCover = new Cover(Item, pic.Data.ToStream());

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -58,6 +58,11 @@ namespace NMaier.SimpleDlna.GUI
     /// <param name="path">Path to the executable to run</param>
     public void InstallAutoRun(string name, string path)
     {
+      // Wrap the path in quotes if it contains a space
+      if (path.Contains(" ") && !path.StartsWith("\""))
+      {
+        path = "\"" + path + "\"";
+      }
       appKey.SetValue(name, path);
     }
 

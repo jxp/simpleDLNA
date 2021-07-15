@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
@@ -51,6 +52,12 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
     private readonly IDbDataParameter selectTime;
 
+    private readonly IDbCommand remove;
+
+    private readonly IDbDataParameter removeKey;
+
+    private readonly IDbCommand randomSample;
+
     public readonly FileInfo StoreFile;
 
     internal FileStore(FileInfo storeFile)
@@ -99,6 +106,15 @@ namespace NMaier.SimpleDlna.FileMediaServer
       insert.Parameters.Add(insertCover = select.CreateParameter());
       insertCover.DbType = DbType.Binary;
       insertCover.ParameterName = "@cover";
+
+      remove = connection.CreateCommand();
+      remove.CommandText = "DELETE FROM store WHERE key = @key";
+      remove.Parameters.Add(removeKey = remove.CreateParameter());
+      removeKey.DbType = DbType.String;
+      removeKey.ParameterName = "@key";
+
+      randomSample = connection.CreateCommand();
+      randomSample.CommandText = "SELECT key FROM store ORDER BY RANDOM() LIMIT 500";
 
       InfoFormat("FileStore at {0} is ready", storeFile.FullName);
 
@@ -303,6 +319,57 @@ namespace NMaier.SimpleDlna.FileMediaServer
         }
         throw;
       }
+    }
+
+    internal void MaybeRemoveFile(FileInfo file)
+    {
+      if (connection == null)
+      {
+        return;
+      }
+
+      lock (connection)
+      {
+        using (var trans = connection.BeginTransaction())
+        {
+          removeKey.Value = file.FullName;
+          try
+          {
+            remove.Transaction = trans;
+            remove.ExecuteNonQuery();
+            trans.Commit();
+          }
+          catch (DbException ex)
+          {
+            Error("Failed to put remove item " + file.FullName + " from store", ex);
+          }
+        }
+      }
+    }
+
+    internal IEnumerable<string> RandomSample()
+    {
+      var sample = new List<string>();
+      if (connection == null)
+      {
+        return sample;
+      }
+
+      lock (connection)
+      {
+        using (var trans = connection.BeginTransaction())
+        {
+          var sampleRdr = randomSample.ExecuteReader();
+          while (sampleRdr.Read())
+          {
+            sample.Add(sampleRdr["key"].ToString());
+          }
+          sampleRdr.Close();
+          trans.Commit();
+        }
+      }
+      return sample;
+
     }
 
     internal void MaybeStoreFile(BaseFile file)

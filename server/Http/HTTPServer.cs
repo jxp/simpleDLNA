@@ -261,7 +261,7 @@ namespace NMaier.SimpleDlna.Server
 
         // Setup initial byes based on server and machine
         var macBytes = HexadecimalStringToByteArray(IP.GetMAC(address).Replace(":", ""));
-        var addressByte = (byte)(address.Address % 256);
+        var addressByte = address.GetAddressBytes()[0];
         var serverBytes = MD5Hash(server.FriendlyName);
         var guidBytes = macBytes.Concat(new byte[]{ addressByte }).Concat(serverBytes.Take(16 - 1 - macBytes.Length)).ToArray();
 

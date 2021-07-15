@@ -12,6 +12,9 @@ namespace NMaier.SimpleDlna.FileMediaServer
   internal sealed class AudioFile
     : BaseFile, IMediaAudioResource, ISerializable
   {
+    public const string AlbumArtPrefix = "AlbumArt";
+    public const string AlbumFolder = "Folder.jpg";
+
     private static readonly TimeSpan emptyDuration = new TimeSpan(0);
     private string album;
 
@@ -209,16 +212,16 @@ namespace NMaier.SimpleDlna.FileMediaServer
           break;
         }
         switch (p.Type) {
-        case PictureType.Other:
-        case PictureType.OtherFileIcon:
-        case PictureType.FileIcon:
-          pic = p;
-          break;
-        default:
-          if (pic == null) {
+          case PictureType.Other:
+          case PictureType.OtherFileIcon:
+          case PictureType.FileIcon:
             pic = p;
-          }
-          break;
+            break;
+          default:
+            if (pic == null) {
+              pic = p;
+            }
+            break;
         }
       }
 
@@ -249,7 +252,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
         if (maybeAlbumFolder || !string.IsNullOrEmpty(fileGuid))
         {
-          var largeFiles = Directory.GetFiles(Item.Directory.FullName, "AlbumArt*" + fileGuid + "*Large.jpg");
+          var largeFiles = Directory.GetFiles(Item.Directory.FullName, AlbumArtPrefix + "*" + fileGuid + "*Large.jpg");
           if (largeFiles.Length > 0)
           {
             pic = new FilePicture(new FileInfo(largeFiles[0]));
@@ -257,8 +260,13 @@ namespace NMaier.SimpleDlna.FileMediaServer
         }
       }
 
-      if (pic == null && maybeAlbumFolder && System.IO.File.Exists(System.IO.Path.Combine(Item.Directory.FullName, "Folder.jpg"))) {
-        pic = new FilePicture(Item);
+      if (pic == null && maybeAlbumFolder)
+      {
+        var albumFolderImg = System.IO.Path.Combine(Item.Directory.FullName, AlbumFolder);
+        if (System.IO.File.Exists(albumFolderImg))
+        {
+          pic = new FilePicture(new FileInfo(albumFolderImg));
+        }
       }
 
       if (pic != null) {
@@ -269,6 +277,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
           Debug("Failed to generate thumb for " + Item.FullName, ex);
         }
       }
+
     }
 
     private void MaybeInit()
@@ -366,7 +375,10 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
     public override void LoadCover()
     {
-      // No op
+      using (var tl = File.Create(new TagLibFileAbstraction(Item)))
+      {
+        InitCover(tl.Tag);
+      }
     }
   }
 }

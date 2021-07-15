@@ -11,5 +11,13 @@ namespace NMaier.SimpleDlna.Server
               where types.HasFlag(i.Key)
               select i.Value).SelectMany(i => i);
     }
+
+    public static IEnumerable<string> GetMetaExtensions(this DlnaMediaTypes types)
+    {
+      return (from i in DlnaMaps.MediaMetaExt
+              where types.HasFlag(i.Key)
+              select i.Value).SelectMany(i => i);
+
+    }
   }
 }

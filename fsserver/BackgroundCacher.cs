@@ -53,9 +53,17 @@ namespace NMaier.SimpleDlna.FileMediaServer
               continue;
             }
             file.LoadCover();
-            using (var k = file.Cover.CreateContentStream()) {
+            using (var k = file.Cover.CreateContentStream())
+            {
               k.ReadByte();
             }
+            if (file.Cover != null)
+            {
+              // We have managed to load a cover, but there isn't one in the store
+              //  Re-store the file to update the cover in the store
+              store.MaybeStoreFile(file);
+            }
+
           }
           catch {
             // ignored

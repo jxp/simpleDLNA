@@ -85,6 +85,10 @@ namespace NMaier.SimpleDlna.Server
     public static readonly Dictionary<DlnaMediaTypes, List<string>> Media2Ext =
       new Dictionary<DlnaMediaTypes, List<string>>();
 
+    // List of meta data files for media types
+    public static readonly Dictionary<DlnaMediaTypes, List<string>> MediaMetaExt =
+      new Dictionary<DlnaMediaTypes, List<string>>();
+
     public static readonly Dictionary<DlnaMime, string> Mime = new Dictionary<DlnaMime, string>
     {
       {DlnaMime.AudioAAC, "audio/aac"},
@@ -349,6 +353,8 @@ namespace NMaier.SimpleDlna.Server
       InitMedia(
         new[] {extAAC, extFLAC, extMP2, extMP3, extRAWAUDIO, extVORBIS},
         DlnaMediaTypes.Audio);
+      // Audio files can have metadata jpeg files for images
+      InitMediaMeta(new[] { extJPEG }, DlnaMediaTypes.Audio);
     }
 
     private static string GenerateProtocolInfo()
@@ -367,23 +373,46 @@ namespace NMaier.SimpleDlna.Server
       foreach (var i in k) {
         var e = (from ext in i
                  select ext.ToUpperInvariant()).ToList();
-        try {
-          if (Media2Ext.ContainsKey(t))
-          { Media2Ext[t].AddRange(e); }
-          else { 
-            Media2Ext.Add(t, e);
-          }
-        }
-        catch (ArgumentException) {
-          Media2Ext[t].AddRange(e);
-        }
+
+        AddMediaExtension(Media2Ext, e, t);
+
         foreach (var ext in e) {
           Ext2Media.Add(ext.ToUpperInvariant(), t);
         }
       }
     }
 
-    internal static string FlagsToString(DlnaFlags flags)
+    private static void AddMediaExtension(Dictionary<DlnaMediaTypes, List<string>> extensionCollection, List<string> extensions, DlnaMediaTypes types)
+    {
+      try
+      {
+        if (extensionCollection.ContainsKey(types))
+        { extensionCollection[types].AddRange(extensions); }
+        else
+        {
+          extensionCollection.Add(types, extensions);
+        }
+      }
+      catch (ArgumentException)
+      {
+        extensionCollection[types].AddRange(extensions);
+      }
+
+    }
+
+    private static void InitMediaMeta(string[][] k, DlnaMediaTypes t)
+    {
+      foreach (var i in k)
+      {
+        var e = (from ext in i
+                 select ext.ToUpperInvariant()).ToList();
+
+        AddMediaExtension(MediaMetaExt, e, t);
+      }
+
+    }
+
+      internal static string FlagsToString(DlnaFlags flags)
     {
       return $"{(ulong)flags:X8}{0:D24}";
     }

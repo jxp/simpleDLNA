@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NMaier.SimpleDlna.Utilities;
@@ -177,6 +177,18 @@ namespace NMaier.SimpleDlna.Server
         }
         ownFolder.Merge(cf);
       }
+    }
+
+    public bool MatchAnyPath(string path)
+    {
+      foreach (var merge in merged)
+      {
+        if (merge.RecursiveMatchPath(path))
+        {
+          return true;
+        }
+      }
+      return false;
     }
 
     public void ReleaseFolder(IMediaFolder folder)

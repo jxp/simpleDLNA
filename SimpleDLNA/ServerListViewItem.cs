@@ -95,7 +95,7 @@ namespace NMaier.SimpleDlna.GUI
         {
           FriendlyName = Description.Name
         };
-#if !DEBUG
+#if !DEBUG || TESTCACHE
         if (cacheFile != null) {
           fileServer.SetCacheFile(cacheFile);
         }

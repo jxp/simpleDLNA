@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NMaier.SimpleDlna.Server.Comparers;
 using NMaier.SimpleDlna.Server.Views;
@@ -123,6 +124,25 @@ namespace NMaier.SimpleDlna.Server
         return null;
       }
       return GetItemById(id);
+    }
+
+    public void RemoveItemByPath(string path)
+    {
+      if (!File.Exists(path))
+      {
+        string id;
+        if (paths.TryGetValue(path, out id))
+        {
+          if (ids.ContainsKey(id))
+          {
+            ids.Remove(id);
+          }
+          if (paths.ContainsKey(path))
+          {
+            paths.Remove(path);
+          }
+        }
+      }
     }
 
     public IMediaFolder RegisterFolder(string id, IMediaFolder item)

@@ -83,18 +83,21 @@ namespace NMaier.SimpleDlna.Server
         res.SetAttribute("protocolInfo", string.Format(
           "http-get:*:{1}:DLNA.ORG_PN={0};DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS={2}",
           c.PN, DlnaMaps.Mime[c.Type], DlnaMaps.DefaultStreaming
-                                           ));
+                                            ));
         var width = c.MetaWidth;
         var height = c.MetaHeight;
-        if (width.HasValue && height.HasValue) {
+        if (width.HasValue && height.HasValue)
+        {
           res.SetAttribute("resolution", $"{width.Value}x{height.Value}");
         }
-        else {
+        else
+        {
           res.SetAttribute("resolution", "200x200");
         }
         res.SetAttribute("protocolInfo",
-                         $"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN;DLNA.ORG_OP=01;DLNA.ORG_CI=1;DLNA.ORG_FLAGS={DlnaMaps.DefaultInteractive}");
+                          $"http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN;DLNA.ORG_OP=01;DLNA.ORG_CI=1;DLNA.ORG_FLAGS={DlnaMaps.DefaultInteractive}");
         item.AppendChild(res);
+
       }
       catch (Exception) {
         // ignored

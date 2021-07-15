@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
@@ -64,6 +64,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
       this.ids = ids;
       this.directories = directories.Distinct().ToArray();
       Filter = new ExtensionFilter(this.types.GetExtensions());
+      MetaFilter = new ExtensionFilter(this.types.GetMetaExtensions());
 
       if (this.directories.Length == 0) {
         throw new ArgumentException(
@@ -81,6 +82,8 @@ namespace NMaier.SimpleDlna.FileMediaServer
     }
 
     internal ExtensionFilter Filter { get; }
+
+    internal ExtensionFilter MetaFilter { get; }
 
     public void Dispose()
     {
@@ -165,7 +168,39 @@ namespace NMaier.SimpleDlna.FileMediaServer
         RegisterNewMaster(newMaster);
 
       Thumbnail();
+
+      CheckSampleExists(newMaster);
     }
+
+    private void CheckSampleExists(IMediaFolder master)
+    {
+      if (store == null)
+      {
+        return;
+      }
+
+      // Check a random sample of files still exists, we don't really handle deletions well
+      //  Ideally we would check the this file is valid for this mast folder
+      //  But we don't know if the filetypes or paths have been changed
+      int cleanedFile = 0;
+      int sampleSize = 0;
+      foreach (var path in store.RandomSample())
+      {
+        sampleSize++;
+        if (!File.Exists(path))
+        {
+          cleanedFile++;
+          HandleFileDeleted(path, master);
+        }
+      }
+
+      if (cleanedFile > 0)
+      {
+        NoticeFormat("Removed {0} out of sample of {1}", cleanedFile, sampleSize);
+      }
+    }
+
+
 
     private bool HandleFileAdded(string fullPath)
     {
@@ -194,22 +229,38 @@ namespace NMaier.SimpleDlna.FileMediaServer
       }
     }
 
-    private bool HandleFileDeleted(string fullPath)
+    private bool HandleFileDeleted(string fullPath, IMediaFolder master)
     {
-      lock (ids) {
-        var info = new FileInfo(fullPath);
+      var info = new FileInfo(fullPath);
+      if (store != null)
+      {
+        store.MaybeRemoveFile(info);
+      }
+      lock (ids)
+      {
         var item = ids.GetItemByPath(info.FullName) as IMediaResource;
         var folder = ids.GetItemByPath(info.Directory?.FullName) as VirtualFolder;
-        if (item == null || folder == null) {
-          return false;
+
+        if (item != null || folder != null)
+        {
+          ids.RemoveItemByPath(fullPath);
         }
-        return folder.RemoveResource(item);
+        foreach (var childFolder in master.ChildFolders)
+        {
+          childFolder.RemoveResource(item);
+        }
+        if (folder != null) {
+          return folder.RemoveResource(item);
+        }
+        return true;
       }
+
     }
 
     private void OnChanged(object source, FileSystemEventArgs e)
     {
       try {
+        watcherRestartCount = 0;
         if (store != null &&
             icomparer.Equals(e.FullPath, store.StoreFile.FullName)) {
           return;
@@ -220,9 +271,35 @@ namespace NMaier.SimpleDlna.FileMediaServer
           ext = string.IsNullOrEmpty(ext) ? string.Empty : ext.Substring(1);
         }
         if (!Filter.Filtered(ext)) {
-          DebugFormat(
-            "Skipping name {0} {1}",
-            e.Name, Path.GetExtension(e.FullPath));
+
+          // Check if this is a meta data filter file and there are files in the same folder
+          if (MetaFilter.Filtered(ext) && e.ChangeType != WatcherChangeTypes.Deleted)
+          {
+            var affectedFiles = Directory.GetFiles(Path.GetDirectoryName(e.FullPath)).Where(f => Filter.Filtered(Path.GetExtension(f).Substring(1)));
+            var refreshFiles = new ConcurrentQueue<WeakReference>();
+            foreach (var file in affectedFiles)
+            {
+              // Add the files to the pending files list
+              var type = DlnaMaps.Ext2Dlna[Path.GetExtension(file).ToUpperInvariant().Substring(1)];
+              if (store != null)
+              {
+                var item = store.MaybeGetFile(this, new FileInfo(file), type);
+                if (item != null)
+                {
+                  refreshFiles.Enqueue(new WeakReference(item));
+                }
+              }
+            }
+            BackgroundCacher.AddFiles(store, refreshFiles);
+
+            DebugFormat("Found {0} affected files from metadata file {1}", affectedFiles.Count(), e.FullPath);
+          }
+          else
+          {
+            DebugFormat(
+              "Skipping name {0} {1}",
+              e.Name, Path.GetExtension(e.FullPath));
+          }
           return;
         }
         DebugFormat(
@@ -232,7 +309,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
           if (master != null) {
             switch (e.ChangeType) {
             case WatcherChangeTypes.Changed:
-              if (HandleFileDeleted(e.FullPath) && HandleFileAdded(e.FullPath)) {
+              if (HandleFileDeleted(e.FullPath, master) && HandleFileAdded(e.FullPath)) {
                 ReaddRoot(master);
                 return;
               }
@@ -244,7 +321,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
               }
               break;
             case WatcherChangeTypes.Deleted:
-              if (HandleFileDeleted(e.FullPath)) {
+              if (HandleFileDeleted(e.FullPath, master)) {
                 ReaddRoot(master);
                 return;
               }
@@ -287,7 +364,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
               var old = new FileInfo(e.OldFullPath);
               // XXX prefix
               if (directories.Contains(old.Directory)) {
-                if (HandleFileDeleted(e.OldFullPath) && HandleFileAdded(e.FullPath)) {
+                if (HandleFileDeleted(e.OldFullPath, master) && HandleFileAdded(e.FullPath)) {
                   ReaddRoot(master);
                   return;
                 }
@@ -499,6 +576,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
       foreach (var watcher in watchers) {
         watcher.IncludeSubdirectories = true;
+        watcher.Error += Watcher_Error;
         watcher.Created += OnChanged;
         watcher.Deleted += OnChanged;
         watcher.Renamed += OnRenamed;
@@ -507,6 +585,21 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
       watchTimer.Elapsed += RescanTimer;
       watchTimer.Enabled = true;
+    }
+
+    private int watcherRestartCount = 0;
+    private void Watcher_Error(object sender, ErrorEventArgs e)
+    {
+      // Record the error
+      ErrorFormat("Error from file watcher - {0}", e.GetException());
+
+      // Check the watcher is still running and if not we can re-start
+      var watcher = sender as FileSystemWatcher;
+      if (watcherRestartCount <= 10 && watcher != null && !watcher.EnableRaisingEvents)
+      {
+        watcherRestartCount++;
+        watcher.EnableRaisingEvents = true;
+      }
     }
 
     public void SetCacheFile(FileInfo info)

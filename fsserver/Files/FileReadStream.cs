@@ -1,5 +1,7 @@
+using System;
 using System.IO;
 using log4net;
+using NMaier.SimpleDlna.Utilities;
 
 namespace NMaier.SimpleDlna.FileMediaServer
 {
@@ -47,5 +49,14 @@ namespace NMaier.SimpleDlna.FileMediaServer
       }
       base.Dispose(disposing);
     }
+
+    public override int Read(byte[] array, int offset, int count)
+    {
+      // Keep the server awake while we are reading a file
+      NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_AWAYMODE_REQUIRED | NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
+
+      return base.Read(array, offset, count);
+    }
+
   }
 }

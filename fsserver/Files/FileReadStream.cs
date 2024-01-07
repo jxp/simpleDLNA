@@ -53,7 +53,8 @@ namespace NMaier.SimpleDlna.FileMediaServer
     public override int Read(byte[] array, int offset, int count)
     {
       // Keep the server awake while we are reading a file
-      NativeMethods.SetThreadExecutionState(NativeMethods.EXECUTION_STATE.ES_AWAYMODE_REQUIRED | NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
+      // We can't do it from this thread, we have to queue it up for the main UI thread (which keeps running)
+      Server.HttpServer.KeepAwake.Enqueue(true);
 
       return base.Read(array, offset, count);
     }

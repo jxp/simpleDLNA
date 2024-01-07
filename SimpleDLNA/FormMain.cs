@@ -46,6 +46,12 @@ namespace NMaier.SimpleDlna.GUI
 
     private readonly Timer appenderTimer =
       new Timer(2000);
+    // Use a windows forms timer for keep awake command so it runs on the persistent UI thread
+    private readonly System.Windows.Forms.Timer keepAwakeTimer =
+      new System.Windows.Forms.Timer() { Interval = 60000 };
+    // Microsoft broke the background sleep timer API in Win 11, this timer is to do it correctly
+    private readonly System.Windows.Forms.Timer sleepTimer = new System.Windows.Forms.Timer();
+
 
     private readonly ConcurrentQueue<LogEntry> pendingLogEntries =
       new ConcurrentQueue<LogEntry>();
@@ -56,46 +62,123 @@ namespace NMaier.SimpleDlna.GUI
 
     private HttpServer httpServer;
 
+    public static ConcurrentQueue<bool> keepAwakeQueue;
+    private static bool isAwake = false;
+
     private bool logging;
 
     public FormMain()
     {
-      HandleCreated += (o, e) => { logging = true; };
-      HandleDestroyed += (o, e) => { logging = false; };
+        keepAwakeQueue = new ConcurrentQueue<bool>();
+        HandleCreated += (o, e) => { logging = true; };
+        HandleDestroyed += (o, e) => { logging = false; };
 
-      InitializeComponent();
+        InitializeComponent();
 
-      listImages.Images.Add("idle", Resources.idle);
-      listImages.Images.Add("active", Resources.active);
-      listImages.Images.Add("inactive", Resources.inactive);
-      listImages.Images.Add("refreshing", Resources.refreshing);
-      listImages.Images.Add("loading", Resources.loading);
-      listImages.Images.Add("info", Resources.info);
-      listImages.Images.Add("warn", Resources.warn);
-      listImages.Images.Add("error", Resources.error);
-      listImages.Images.Add("server", Resources.server.ToBitmap());
+        listImages.Images.Add("idle", Resources.idle);
+        listImages.Images.Add("active", Resources.active);
+        listImages.Images.Add("inactive", Resources.inactive);
+        listImages.Images.Add("refreshing", Resources.refreshing);
+        listImages.Images.Add("loading", Resources.loading);
+        listImages.Images.Add("info", Resources.info);
+        listImages.Images.Add("warn", Resources.warn);
+        listImages.Images.Add("error", Resources.error);
+        listImages.Images.Add("server", Resources.server.ToBitmap());
 
-      appenderTimer.Elapsed += (s, e) => { BeginInvoke((Action)(() => { DoAppendInternal(s, e); })); };
+        appenderTimer.Elapsed += (s, e) => { BeginInvoke((Action)(() => { DoAppendInternal(s, e); })); };
+        keepAwakeTimer.Tick += KeepAwakeTimer_Tick;
+        sleepTimer.Tick += SleepTimer_Tick;
 
-      SetupLogging();
+        SetupLogging();
 
-      StartPipeNotification();
+        StartPipeNotification();
 
-      notifyIcon.Icon = Icon;
+        notifyIcon.Icon = Icon;
 
-      if (!string.IsNullOrWhiteSpace(config.cache)) {
-        if (Directory.Exists(config.cache))
+        if (!string.IsNullOrWhiteSpace(config.cache))
         {
-          cacheFile = new FileInfo(Path.Combine(config.cache, "sdlna.cache"));
-        } else
+          if (Directory.Exists(config.cache))
+          {
+            cacheFile = new FileInfo(Path.Combine(config.cache, "sdlna.cache"));
+          }
+          else
+          {
+            cacheFile = new FileInfo(config.cache);
+          }
+        }
+
+        Utilities.MKVTools.Initialise(config.mkvTools);
+        CreateHandle();
+        SetupServer();
+        keepAwakeTimer.Start();
+    }
+
+    private void KeepAwakeTimer_Tick(object sender, EventArgs e)
+    {
+      var keepAwake = false;
+      var queueVal = false;
+
+      // We can't depend on how many times this will be queued in the timer interval, clear the queue
+      if (keepAwakeQueue.TryDequeue(out queueVal))
+      {
+        keepAwake = keepAwake || queueVal;
+        while (keepAwakeQueue.TryDequeue(out queueVal))
         {
-          cacheFile = new FileInfo(config.cache);
+          keepAwake = keepAwake || queueVal;
         }
       }
+      if (keepAwake)
+      {
+        if (!isAwake)
+        {
+          var result = Utilities.NativeMethods.SetThreadExecutionState(Utilities.NativeMethods.EXECUTION_STATE.ES_SYSTEM_REQUIRED | Utilities.NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
+          isAwake = true;
+          // Stop the sleep timer 
+          sleepTimer.Stop();
+        }
+      }
+      else
+      {
+        // Keep awake disabled, clear the other flags
+        if (isAwake)
+        {
+          // Note that Microsfoft broke the behaviour of EXECUTION_STATE.ES_SYSTEM_REQUIRED in Windows 11
+          //  It no longer resets the sleep time and your PC can immediately go to sleep when it is no longer in continuous use
 
-      Utilities.MKVTools.Initialise(config.mkvTools);
-      CreateHandle();
-      SetupServer();
+          // So here I am implementing my own sleep timer
+
+          // First access the windows settings to find out what the system sleep interval is set to
+          var activePolicyGuidPTR = IntPtr.Zero;
+          Utilities.NativeMethods.PowerGetActiveScheme(IntPtr.Zero, ref activePolicyGuidPTR);
+
+          var activePolicyGuid = System.Runtime.InteropServices.Marshal.PtrToStructure<Guid>(activePolicyGuidPTR);
+          var type = 0;
+          var value = 0;
+          var valueSize = 4u;
+          Utilities.NativeMethods.PowerReadACValue(IntPtr.Zero, ref activePolicyGuid,
+              ref Utilities.NativeMethods.GUID_SLEEP_SUBGROUP, ref Utilities.NativeMethods.GUID_STANDBYIDLE,
+              ref type, ref value, ref valueSize);
+
+
+          // Start the timer to handle the sleep timeout
+          sleepTimer.Interval = value * 1000;
+          sleepTimer.Start();
+          isAwake = false;
+        }
+      }
+      
+    }
+
+    private void SleepTimer_Tick(object sender, EventArgs e)
+    {
+        var result = Utilities.NativeMethods.SetThreadExecutionState(Utilities.NativeMethods.EXECUTION_STATE.ES_CONTINUOUS);
+        sleepTimer.Stop();
+    }
+
+    // A very quick and dirty logging for debugging changes
+    private void DirtyLog(string message)
+    {
+      File.AppendAllText("C:\\Temp\\Threadstate.log", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss   ") + message + "\r\n");
     }
 
     protected sealed override void CreateHandle()
@@ -525,6 +608,7 @@ namespace NMaier.SimpleDlna.GUI
 
     private void SetupServer()
     {
+      HttpServer.KeepAwake = keepAwakeQueue;
       httpServer = new HttpServer((int)config.port);
       LoadConfig();
       Text = $"{Text} - Port {httpServer.RealPort}";

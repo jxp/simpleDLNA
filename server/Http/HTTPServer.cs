@@ -40,6 +40,8 @@ namespace NMaier.SimpleDlna.Server
     {
     }
 
+    public static ConcurrentQueue<bool> KeepAwake { get; set; } 
+
     public HttpServer(int port)
     {
       prefixes.TryAdd(

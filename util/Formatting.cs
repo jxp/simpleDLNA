@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
@@ -6,8 +6,9 @@ namespace NMaier.SimpleDlna.Utilities
 {
   public static class Formatting
   {
+    // Exclude standard prefix words (e.g. The, A, An, Die, Ein etc), but add special exclusions for Die Hard and A-Ha
     private static readonly Regex sanitizer = new Regex(
-      @"\b(?:the|an?|ein(?:e[rs]?)?|der|die|das)\b",
+      @"\b(?!die hard)(?!a-ha)(?:the|an?|ein(?:e[rs]?)?|der|die|das)\b",
       RegexOptions.IgnoreCase | RegexOptions.Compiled
       );
 

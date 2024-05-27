@@ -54,7 +54,11 @@ namespace NMaier.SimpleDlna.Server.Views
     public override IMediaFolder Transform(IMediaFolder oldRoot)
     {
       var r = new VirtualClonedFolder(oldRoot);
-      var cross = from f in r.ChildFolders
+
+      // As this is a standard folder view there is no need to merge any folders
+      //  each one is considered unique due to its path
+      // i.e. Videos\Family\2022 should not be merged with Videos\School\2022
+/*      var cross = from f in r.ChildFolders
                   from t in r.ChildFolders
                   where f != t
                   orderby f.Title, t.Title
@@ -70,6 +74,7 @@ namespace NMaier.SimpleDlna.Server.Views
 
       //TransformInternal(r, r);
       MergeFolders(r, r);
+*/
       return r;
     }
   }

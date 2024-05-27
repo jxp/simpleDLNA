@@ -231,8 +231,9 @@ namespace NMaier.SimpleDlna.FileMediaServer
       {
         var fileGuid = string.Empty;
         // We could check all files with the same extension all have the same artist or album
-        // For now just check if we have 20 or less files with the same extension
-        if (Item.Directory.GetFiles("*" + Item.Extension).Length <= 20)
+        // For now just check if we have 24 or less files with the same extension
+        // We need 24 for longer compilation albums
+        if (Item.Directory.GetFiles("*" + Item.Extension).Length <= 24)
         {
           maybeAlbumFolder = true;
         }

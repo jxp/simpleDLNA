@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -49,6 +49,12 @@ namespace NMaier.SimpleDlna.Server.Ssdp
     private readonly Timer queueTimer =
       new Timer(1000);
 
+    private readonly Timer addressErrorTimer = new Timer(10000);
+    private int addressErrors = 0;
+    private const int addressErrorsAlertAt = 20;
+
+    public event EventHandler RepeatedAddressError;
+
     private bool running = true;
 
     public SsdpHandler()
@@ -57,6 +63,8 @@ namespace NMaier.SimpleDlna.Server.Ssdp
       notificationTimer.Enabled = true;
 
       queueTimer.Elapsed += ProcessQueue;
+
+      addressErrorTimer.Elapsed += CheckAddressErrorCount;
 
       client.Client.UseOnlyOverlappedIO = true;
       client.Client.SetSocketOption(
@@ -97,6 +105,8 @@ namespace NMaier.SimpleDlna.Server.Ssdp
       notificationTimer.Dispose();
       queueTimer.Dispose();
       datagramPosted.Dispose();
+      addressErrorTimer.Enabled = false;
+      addressErrorTimer.Dispose();
     }
 
     private void ProcessQueue(object sender, ElapsedEventArgs e)
@@ -108,6 +118,7 @@ namespace NMaier.SimpleDlna.Server.Ssdp
         }
         if (msg != null && (running || msg.Sticky)) {
           msg.Send();
+          StartCountingErrors(msg);
           if (msg.SendCount > DATAGRAMS_PER_MESSAGE) {
             messageQueue.TryDequeue(out msg);
           }
@@ -315,6 +326,38 @@ namespace NMaier.SimpleDlna.Server.Ssdp
         NotifyDevice(d, "byebye", true);
       }
       DebugFormat("Unregistered mount {0}", uuid);
+    }
+
+    private void StartCountingErrors(Datagram msg)
+    {
+      if (msg.AddressError)
+      {
+        if (addressErrorTimer.Enabled == false)
+        {
+          addressErrorTimer.Enabled = true;
+          addressErrorTimer.Start();
+        }
+        addressErrors++;
+      }
+    }
+    private void CheckAddressErrorCount(object sender, ElapsedEventArgs e)
+    {
+      addressErrorTimer.Enabled = false;
+      addressErrorTimer.Stop();
+
+      if (addressErrors > addressErrorsAlertAt)
+      {
+        EventHandler handler = RepeatedAddressError;
+        if (handler != null)
+        {
+          handler(this, EventArgs.Empty);
+        }
+      } else
+      {
+        InfoFormat("Detected {0} address errors, not reloading", addressErrors);
+      }
+
+      addressErrors = 0;
     }
   }
 }

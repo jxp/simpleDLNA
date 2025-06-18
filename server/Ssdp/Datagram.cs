@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -16,6 +16,8 @@ namespace NMaier.SimpleDlna.Server.Ssdp
 
     public readonly bool Sticky;
 
+    public bool AddressError { get; private set; }
+
     public Datagram(IPEndPoint endPoint, IPAddress localAddress,
       string message, bool sticky)
     {
@@ -31,7 +33,8 @@ namespace NMaier.SimpleDlna.Server.Ssdp
     public void Send()
     {
       var msg = Encoding.ASCII.GetBytes(Message);
-      try {
+      try
+      {
         var client = new UdpClient();
         client.Client.Bind(new IPEndPoint(LocalAddress, 0));
         client.Ttl = 10;
@@ -54,6 +57,15 @@ namespace NMaier.SimpleDlna.Server.Ssdp
           }
         }, null);
       }
+      catch (SocketException exs)
+      {
+        // Check for the address no longer being available
+        if (exs.SocketErrorCode == SocketError.AddressNotAvailable)
+        {
+          AddressError = true;
+        }
+        Error("Socket error " + exs.SocketErrorCode + " binding to " + LocalAddress.ToString() , exs);
+      } 
       catch (Exception ex) {
         Error(ex);
       }

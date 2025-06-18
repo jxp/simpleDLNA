@@ -580,6 +580,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
         watcher.Created += OnChanged;
         watcher.Deleted += OnChanged;
         watcher.Renamed += OnRenamed;
+        watcher.Changed += OnChanged;
         watcher.EnableRaisingEvents = true;
       }
 

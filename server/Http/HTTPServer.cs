@@ -33,6 +33,9 @@ namespace NMaier.SimpleDlna.Server
 
     private readonly SsdpHandler ssdpServer;
 
+    public event EventHandler ReloadRequired;
+
+
     private readonly Timer timeouter = new Timer(10 * 1000);
 
     public HttpServer()
@@ -66,11 +69,23 @@ namespace NMaier.SimpleDlna.Server
       NoticeFormat(
         "Running HTTP Server: {0} on port {1}", Signature, RealPort);
       ssdpServer = new SsdpHandler();
+      ssdpServer.RepeatedAddressError += SsdpServer_RepeatedAddressError;
 
       timeouter.Elapsed += TimeouterCallback;
       timeouter.Enabled = true;
 
       Accept();
+    }
+
+    private void SsdpServer_RepeatedAddressError(object sender, EventArgs e)
+    {
+      // Pass this event on to the hosting class
+      EventHandler handler = ReloadRequired;
+      if (handler != null)
+      {
+        handler(this, EventArgs.Empty);
+      }
+
     }
 
     public Dictionary<string, string> MediaMounts
@@ -93,6 +108,7 @@ namespace NMaier.SimpleDlna.Server
       foreach (var s in servers.Values.ToList()) {
         UnregisterMediaServer(s);
       }
+      ssdpServer.RepeatedAddressError -= SsdpServer_RepeatedAddressError;
       ssdpServer.Dispose();
       timeouter.Dispose();
       listener.Stop();

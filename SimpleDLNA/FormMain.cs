@@ -367,6 +367,12 @@ namespace NMaier.SimpleDlna.GUI
       Close();
     }
 
+    private void restartToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+      RestartServer();
+    }
+
+
     private void FormMain_FormClosed(object sender, FormClosedEventArgs e)
     {
       Text = "Going down...";
@@ -610,8 +616,30 @@ namespace NMaier.SimpleDlna.GUI
     {
       HttpServer.KeepAwake = keepAwakeQueue;
       httpServer = new HttpServer((int)config.port);
+      httpServer.ReloadRequired += HttpServer_ReloadRequired;
       LoadConfig();
       Text = $"{Text} - Port {httpServer.RealPort}";
+    }
+
+    private void HttpServer_ReloadRequired(object sender, EventArgs e)
+    {
+      log.Info("Multiple address errors detected, attempting reload");
+      httpServer.ReloadRequired -= HttpServer_ReloadRequired;
+      RestartServer();
+    }
+
+    internal void RestartServer()
+    {
+      // If the server gets stuck with repeated errors we should restart it
+      foreach (ServerListViewItem listItem in listDescriptions.Items)
+      {
+        listItem.Dispose();
+      }
+      listDescriptions.Items.Clear();
+      Text = Text.Replace($" - Port {httpServer.RealPort}", String.Empty);
+      httpServer.Dispose();
+      httpServer = null;
+      SetupServer();
     }
 
     private void StartPipeNotification()
@@ -751,5 +779,6 @@ namespace NMaier.SimpleDlna.GUI
 
       public string Time;
     }
+
   }
 }

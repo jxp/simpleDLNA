@@ -184,6 +184,16 @@ namespace NMaier.SimpleDlna.Server.Ssdp
           if (method == "M-SEARCH") {
             RespondToSearch(endpoint, headers["st"]);
           }
+          else if (method == "NOTIFY") {
+            string nts, nt, location, server;
+            if (headers.TryGetValue("NTS", out nts) && nts == "ssdp:alive" &&
+                headers.TryGetValue("NT", out nt) &&
+                headers.TryGetValue("LOCATION", out location)) {
+              headers.TryGetValue("SERVER", out server);
+              ClientProfiles.Instance.Announce(
+                endpoint.Address, nt, location, server);
+            }
+          }
         }
       }
       catch (IOException ex) {
@@ -296,6 +306,7 @@ namespace NMaier.SimpleDlna.Server.Ssdp
       }.Select(t => new UpnpDevice(uuid, t, descriptor, address)));
 
       NotifyAll();
+      ClientProfiles.Instance.Search(address);
       DebugFormat("Registered mount {0}, {1}", uuid, address);
     }
 

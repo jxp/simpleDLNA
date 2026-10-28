@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Xml;
 using NMaier.SimpleDlna.Server.Metadata;
 using NMaier.SimpleDlna.Server.Properties;
+using NMaier.SimpleDlna.Server.Ssdp;
 using NMaier.SimpleDlna.Utilities;
 
 namespace NMaier.SimpleDlna.Server
@@ -58,6 +59,8 @@ namespace NMaier.SimpleDlna.Server
             )) {
         throw new HttpStatusException(HttpCode.Denied);
       }
+      ClientProfiles.Instance.Probe(
+        request.RemoteEndpoint.Address, request.LocalEndPoint.Address);
 
       var path = request.Path.Substring(Prefix.Length);
       Debug(path);

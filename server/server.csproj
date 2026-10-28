@@ -75,7 +75,10 @@
     <Compile Include="Interfaces\IMediaImageResource.cs" />
     <Compile Include="Interfaces\IMediaVideoResource.cs" />
     <Compile Include="Interfaces\ITitleComparable.cs" />
+    <Compile Include="Ssdp\ClientProfiles.cs" />
     <Compile Include="Ssdp\Datagram.cs" />
+    <Compile Include="Types\ClientProfile.cs" />
+    <Compile Include="Types\DlnaProtocolInfo.cs" />
     <Compile Include="Handlers\MediaMount_HTML.cs" />
     <Compile Include="Handlers\MediaMount_SOAP.cs" />
     <Compile Include="Responses\FileResponse.cs" />

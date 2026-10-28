@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -20,19 +20,37 @@ namespace NMaier.SimpleDlna.Utilities
     public static IEnumerable<IPAddress> AllIPAddresses
     {
       get {
-        try {
+        var repeatLoopCount = 0;
+
+        // If the service starts up but the network is not connected we can retry a few times with a wait in-betweemn
+        while (repeatLoopCount < 3)
+      {
+        try
+        {
           return GetIPsDefault().ToArray();
         }
-        catch (Exception ex) {
-          if (!warned) {
+        catch (Exception ex)
+        {
+          if (!warned)
+          {
             logger.Warn(
               "Failed to retrieve IP addresses the usual way, falling back to naive mode",
               ex);
             warned = true;
           }
-          return GetIPsFallback();
+            try
+            {
+              return GetIPsFallback();
+            }
+            catch { }
         }
+
+          logger.Warn("Failed to get IP addresses, will try again in 5 minutes");
+          repeatLoopCount++;
+          System.Threading.Thread.Sleep(300000);
       }
+        throw new ApplicationException("No IP");
+    }
     }
 
     public static IEnumerable<IPAddress> ExternalIPAddresses => from i in AllIPAddresses
@@ -63,6 +81,7 @@ namespace NMaier.SimpleDlna.Utilities
           yield return address;
         }
       }
+
       if (!returned) {
         throw new ApplicationException("No IP");
       }

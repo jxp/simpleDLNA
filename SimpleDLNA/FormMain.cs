@@ -624,6 +624,9 @@ namespace NMaier.SimpleDlna.GUI
     private void HttpServer_ReloadRequired(object sender, EventArgs e)
     {
       log.Info("Multiple address errors detected, attempting reload");
+      // Wait for 10 secs before restarting
+      //  A small pause should increase the chance of resuming smoothly
+      Thread.Sleep(10000);
       httpServer.ReloadRequired -= HttpServer_ReloadRequired;
       RestartServer();
     }
@@ -715,7 +718,7 @@ namespace NMaier.SimpleDlna.GUI
         Exception = loggingEvent.GetExceptionString(),
         Key = key,
         Message = loggingEvent.RenderedMessage,
-        Time = loggingEvent.TimeStamp.ToString("T")
+        Time = loggingEvent.TimeStamp.ToString("dd-MMM ") + loggingEvent.TimeStamp.ToString("T")
       });
       lock (appenderLock) {
         appenderTimer.Enabled = true;

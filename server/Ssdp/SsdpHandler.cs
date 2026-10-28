@@ -52,6 +52,7 @@ namespace NMaier.SimpleDlna.Server.Ssdp
     private readonly Timer addressErrorTimer = new Timer(10000);
     private int addressErrors = 0;
     private const int addressErrorsAlertAt = 20;
+    private DateTime lastError = DateTime.MinValue;
 
     public event EventHandler RepeatedAddressError;
 
@@ -334,30 +335,39 @@ namespace NMaier.SimpleDlna.Server.Ssdp
       {
         if (addressErrorTimer.Enabled == false)
         {
+          Info("Received address error starting time check");
           addressErrorTimer.Enabled = true;
           addressErrorTimer.Start();
         }
         addressErrors++;
+        lastError = DateTime.UtcNow;
       }
     }
     private void CheckAddressErrorCount(object sender, ElapsedEventArgs e)
     {
-      addressErrorTimer.Enabled = false;
-      addressErrorTimer.Stop();
-
-      if (addressErrors > addressErrorsAlertAt)
+      // Check if the last error was more than 2 seconds ago
+      //  i.e. we don't raise the error unless they have stopped
+      if ((DateTime.UtcNow - lastError).TotalSeconds > 2)
       {
-        EventHandler handler = RepeatedAddressError;
-        if (handler != null)
+        Info("Address errors have stoppped");
+        addressErrorTimer.Enabled = false;
+        addressErrorTimer.Stop();
+
+        if (addressErrors > addressErrorsAlertAt)
         {
-          handler(this, EventArgs.Empty);
+          EventHandler handler = RepeatedAddressError;
+          if (handler != null)
+          {
+            handler(this, EventArgs.Empty);
+          }
         }
-      } else
-      {
-        InfoFormat("Detected {0} address errors, not reloading", addressErrors);
-      }
+        else
+        {
+          InfoFormat("Detected {0} address errors, not reloading", addressErrors);
+        }
 
-      addressErrors = 0;
+        addressErrors = 0;
+      }
     }
   }
 }

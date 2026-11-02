@@ -84,7 +84,7 @@ namespace NMaier.SimpleDlna.Server
         client.LastAddress = endpoint?.Address;
       }
       if (connected) {
-        InfoFormat("{0} - Client connected: {1}", endpoint, client);
+        NoticeFormat("{0} - Client connected: {1}", endpoint, client);
       }
       return client;
     }

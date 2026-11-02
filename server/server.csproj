@@ -90,7 +90,9 @@
     <Compile Include="Interfaces\Metadata\IMetaResolution.cs" />
     <Compile Include="Interfaces\Metadata\IMetaVideoItem.cs" />
     <Compile Include="Types\AudioResourceDecorator.cs" />
+    <Compile Include="Http\ClientRegistry.cs" />
     <Compile Include="Http\HttpAuthorizer.cs" />
+    <Compile Include="Types\ClientInfo.cs" />
     <Compile Include="Types\DlnaFlags.cs" />
     <Compile Include="Types\DlnaMaps.cs" />
     <Compile Include="Types\DlnaMime.cs" />

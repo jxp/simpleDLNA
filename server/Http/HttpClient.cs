@@ -126,6 +126,8 @@ namespace NMaier.SimpleDlna.Server
 
     public string Body { get; private set; }
 
+    public ClientInfo Client { get; private set; }
+
     public IHeaders Headers { get; } = new Headers();
 
     public IPEndPoint LocalEndPoint { get; }
@@ -300,6 +302,7 @@ namespace NMaier.SimpleDlna.Server
       Headers.Clear();
       hasHeaders = false;
       Body = null;
+      Client = null;
       bodyBytes = 0;
       readStream = StreamManager.GetStream();
 
@@ -370,6 +373,7 @@ namespace NMaier.SimpleDlna.Server
         if (!owner.AuthorizeClient(this)) {
           throw new HttpStatusException(HttpCode.Denied);
         }
+        Client = ClientRegistry.Instance.Seen(Headers, RemoteEndpoint);
         if (string.IsNullOrEmpty(Path)) {
           response = error404.HandleRequest(this);
           //throw new HttpStatusException(HttpCode.NotFound);

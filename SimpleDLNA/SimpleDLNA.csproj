@@ -123,6 +123,7 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ClientDescription.cs" />
     <Compile Include="ServerDescription.cs" />
     <Compile Include="ServerListViewItem.cs" />
     <Compile Include="Settings.cs" />

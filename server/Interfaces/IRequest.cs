@@ -6,6 +6,11 @@ namespace NMaier.SimpleDlna.Server
   {
     string Body { get; }
 
+    /// <summary>
+    ///   The client making the request, or null if it sent no User-Agent
+    /// </summary>
+    ClientInfo Client { get; }
+
     IHeaders Headers { get; }
 
     IPEndPoint LocalEndPoint { get; }

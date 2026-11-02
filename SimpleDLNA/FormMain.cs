@@ -108,6 +108,7 @@ namespace NMaier.SimpleDlna.GUI
         }
 
         Utilities.MKVTools.Initialise(config.mkvTools);
+        LoadClients();
         CreateHandle();
         SetupServer();
         keepAwakeTimer.Start();
@@ -378,6 +379,8 @@ namespace NMaier.SimpleDlna.GUI
       Text = "Going down...";
       httpServer.Dispose();
       httpServer = null;
+      SaveClients();
+      config.Save();
     }
 
     private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -573,13 +576,39 @@ namespace NMaier.SimpleDlna.GUI
       catch (Exception ex) {
         log.Error("Failed to write descriptors", ex);
       }
+      SaveClients();
       config.Save();
+    }
+
+    private static void LoadClients()
+    {
+      if (config.Clients == null) {
+        return;
+      }
+      foreach (var c in config.Clients) {
+        ClientRegistry.Instance.Restore(
+          c.UserAgent, c.Description, c.TranscodeAudio, c.LastSeen);
+      }
+    }
+
+    private static void SaveClients()
+    {
+      config.Clients = (from c in ClientRegistry.Instance.Clients
+                        orderby c.LastSeen descending
+                        select new ClientDescription
+                        {
+                          UserAgent = c.UserAgent,
+                          Description = c.Description,
+                          TranscodeAudio = c.TranscodeAudio,
+                          LastSeen = c.LastSeen
+                        }).ToList();
     }
 
     private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
     {
       using (var settings = new FormSettings()) {
         settings.ShowDialog();
+        SaveClients();
         config.Save();
         SetupLogging();
       }

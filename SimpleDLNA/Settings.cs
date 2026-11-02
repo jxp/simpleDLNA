@@ -21,6 +21,20 @@ namespace NMaier.SimpleDlna.GUI.Properties
 
     [UserScopedSetting]
     [DefaultSettingValue("")]
+    public List<ClientDescription> Clients
+    {
+      get
+      {
+        return this["Clients"] as List<ClientDescription>;
+      }
+      set
+      {
+        this["Clients"] = value;
+      }
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
     public List<ServerDescription> Descriptors
     {
       get

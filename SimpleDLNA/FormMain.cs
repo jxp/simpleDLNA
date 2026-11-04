@@ -12,6 +12,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Net;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -586,8 +587,12 @@ namespace NMaier.SimpleDlna.GUI
         return;
       }
       foreach (var c in config.Clients) {
+        IPAddress address;
+        IPAddress.TryParse(c.LastAddress ?? string.Empty, out address);
         ClientRegistry.Instance.Restore(
-          c.UserAgent, c.Description, c.TranscodeAudio, c.LastSeen);
+          new[] {c.UserAgent}.Concat(
+            c.AdditionalUserAgents ?? Enumerable.Empty<string>()),
+          c.Description, c.TranscodeAudio, c.LastSeen, address);
       }
     }
 
@@ -598,9 +603,12 @@ namespace NMaier.SimpleDlna.GUI
                         select new ClientDescription
                         {
                           UserAgent = c.UserAgent,
+                          AdditionalUserAgents =
+                            c.AdditionalUserAgents.ToArray(),
                           Description = c.Description,
                           TranscodeAudio = c.TranscodeAudio,
-                          LastSeen = c.LastSeen
+                          LastSeen = c.LastSeen,
+                          LastAddress = c.LastAddress?.ToString()
                         }).ToList();
     }
 

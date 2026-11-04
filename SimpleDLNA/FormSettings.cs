@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using NMaier.SimpleDlna.GUI.Properties;
 using NMaier.SimpleDlna.Server;
@@ -44,7 +45,66 @@ namespace NMaier.SimpleDlna.GUI
     private void DeleteClients(IList<ClientInfo> selected)
     {
       foreach (var client in selected) {
-        ClientRegistry.Instance.Remove(client.UserAgent);
+        ClientRegistry.Instance.Remove(client);
+      }
+    }
+
+    private static string ClientDetails(ClientInfo client)
+    {
+      var details = new StringBuilder();
+      details.AppendLine(client.Description);
+      details.AppendLine();
+      details.AppendLine("User-Agent:");
+      details.AppendLine("  " + client.UserAgent);
+      var additional = client.AdditionalUserAgents;
+      if (additional.Count != 0) {
+        details.AppendLine("Additional User-Agents:");
+        foreach (var ua in additional) {
+          details.AppendLine("  " + ua);
+        }
+      }
+      details.AppendLine();
+      details.AppendLine(
+        $"Last address: {client.LastAddress?.ToString() ?? "unknown"}");
+      details.AppendLine(
+        $"Last seen: {(client.LastSeen == DateTime.MinValue ? "never" : client.LastSeen.ToString("g"))}");
+      details.Append(
+        $"Transcode audio: {(client.TranscodeAudio ? "Yes" : "No")}");
+      return details.ToString();
+    }
+
+    private ClientInfo ClientAt(int rowIndex)
+    {
+      return rowIndex < 0
+        ? null
+        : gridClients.Rows[rowIndex].DataBoundItem as ClientInfo;
+    }
+
+    private void gridClients_CellClick(object sender,
+      DataGridViewCellEventArgs e)
+    {
+      var client = ClientAt(e.RowIndex);
+      if (client == null || e.ColumnIndex != colInfo.Index) {
+        return;
+      }
+      MessageBox.Show(
+        this, ClientDetails(client), "Client details", MessageBoxButtons.OK,
+        MessageBoxIcon.Information);
+    }
+
+    private void gridClients_CellToolTipTextNeeded(object sender,
+      DataGridViewCellToolTipTextNeededEventArgs e)
+    {
+      var client = ClientAt(e.RowIndex);
+      if (client == null) {
+        return;
+      }
+      if (e.ColumnIndex == colInfo.Index) {
+        e.ToolTipText = ClientDetails(client);
+      }
+      else if (e.ColumnIndex == colUserAgent.Index &&
+               client.AdditionalUserAgents.Count != 0) {
+        e.ToolTipText = string.Join(Environment.NewLine, client.UserAgents);
       }
     }
 

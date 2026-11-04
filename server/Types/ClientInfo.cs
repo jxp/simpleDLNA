@@ -1,33 +1,51 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 
 namespace NMaier.SimpleDlna.Server
 {
   /// <summary>
-  ///   A software client, identified by its User-Agent header.
+  ///   A software client, identified by the User-Agent headers it sends.
+  ///   Many devices use more than one, e.g. one for browsing and another for
+  ///   playback.
   /// </summary>
   public sealed class ClientInfo
   {
-    public ClientInfo(string userAgent)
-    {
-      if (string.IsNullOrEmpty(userAgent)) {
-        throw new ArgumentNullException(nameof(userAgent));
-      }
-      UserAgent = userAgent;
-      Description = userAgent;
-    }
-
     private string description;
 
+    // Replaced, never modified, so it can be read without locking
+    private string[] userAgents;
+
+    public ClientInfo(string userAgent)
+    {
+      if (string.IsNullOrWhiteSpace(userAgent)) {
+        throw new ArgumentNullException(nameof(userAgent));
+      }
+      userAgents = new[] {userAgent.Trim()};
+    }
+
     /// <summary>
-    ///   Defaults to (and reverts to, when cleared) the User-Agent
+    ///   The User-Agents other than the main one
+    /// </summary>
+    public IList<string> AdditionalUserAgents
+    {
+      get {
+        var main = UserAgent;
+        return userAgents.Where(u => u != main).ToList().AsReadOnly();
+      }
+    }
+
+    /// <summary>
+    ///   Defaults to (and reverts to, when cleared) the main User-Agent
     /// </summary>
     public string Description
     {
-      get { return description; }
+      get { return description ?? UserAgent; }
       set {
-        description = string.IsNullOrWhiteSpace(value)
-          ? UserAgent
+        description = string.IsNullOrWhiteSpace(value) ||
+                      value.Trim() == UserAgent
+          ? null
           : value.Trim();
       }
     }
@@ -41,13 +59,61 @@ namespace NMaier.SimpleDlna.Server
 
     public bool TranscodeAudio { get; set; }
 
-    public string UserAgent { get; }
+    /// <summary>
+    ///   The main User-Agent: the most specific (longest) one. Shorter ones,
+    ///   such as "Roku/4400X", are often shared by several devices.
+    /// </summary>
+    public string UserAgent
+    {
+      get {
+        var uas = userAgents;
+        return uas.Aggregate((best, u) => u.Length > best.Length ? u : best);
+      }
+    }
+
+    public IList<string> UserAgents => Array.AsReadOnly(userAgents);
+
+    internal void AddUserAgent(string userAgent)
+    {
+      if (string.IsNullOrWhiteSpace(userAgent) || HasUserAgent(userAgent)) {
+        return;
+      }
+      userAgents = userAgents.Concat(new[] {userAgent.Trim()}).ToArray();
+    }
+
+    internal bool HasUserAgent(string userAgent)
+    {
+      return userAgents.Contains(userAgent, StringComparer.OrdinalIgnoreCase);
+    }
+
+    internal bool IsMainUserAgent(string userAgent)
+    {
+      return UserAgent.Equals(userAgent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    ///   Takes over the User-Agents of a client that turned out to be this one
+    /// </summary>
+    internal void Merge(ClientInfo other)
+    {
+      foreach (var ua in other.userAgents) {
+        AddUserAgent(ua);
+      }
+      if (description == null) {
+        description = other.description;
+      }
+      TranscodeAudio = TranscodeAudio || other.TranscodeAudio;
+      if (other.LastSeen > LastSeen) {
+        LastSeen = other.LastSeen;
+        LastAddress = other.LastAddress;
+      }
+    }
 
     public override string ToString()
     {
-      return Description == UserAgent
-        ? Description
-        : $"{Description} [{UserAgent}]";
+      return description == null
+        ? UserAgent
+        : $"{description} [{UserAgent}]";
     }
   }
 }

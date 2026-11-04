@@ -49,6 +49,7 @@ namespace NMaier.SimpleDlna.GUI
             this.tabClients = new System.Windows.Forms.TabPage();
             this.labelClientsHint = new System.Windows.Forms.Label();
             this.gridClients = new System.Windows.Forms.DataGridView();
+            this.colInfo = new System.Windows.Forms.DataGridViewImageColumn();
             this.colDescription = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colTranscodeAudio = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.colLastSeen = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -260,7 +261,7 @@ namespace NMaier.SimpleDlna.GUI
             this.labelClientsHint.Name = "labelClientsHint";
             this.labelClientsHint.Size = new System.Drawing.Size(492, 27);
             this.labelClientsHint.TabIndex = 2;
-            this.labelClientsHint.Text = "Clients are identified by their User-Agent. Changes take effect immediately.";
+            this.labelClientsHint.Text = "Clients are identified by their User-Agents. Changes take effect immediately.";
             this.labelClientsHint.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // gridClients
@@ -274,6 +275,7 @@ namespace NMaier.SimpleDlna.GUI
             this.gridClients.BackgroundColor = System.Drawing.SystemColors.Window;
             this.gridClients.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.gridClients.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.colInfo,
             this.colDescription,
             this.colTranscodeAudio,
             this.colLastSeen,
@@ -284,12 +286,23 @@ namespace NMaier.SimpleDlna.GUI
             this.gridClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.gridClients.Size = new System.Drawing.Size(585, 252);
             this.gridClients.TabIndex = 0;
-            this.gridClients.CurrentCellDirtyStateChanged += new System.EventHandler(this.gridClients_CurrentCellDirtyStateChanged);
+            this.gridClients.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.gridClients_CellClick);
+            this.gridClients.CellToolTipTextNeeded += new System.Windows.Forms.DataGridViewCellToolTipTextNeededEventHandler(this.gridClients_CellToolTipTextNeeded);
+            this.gridClients.CurrentCellDirtyStateChanged +=new System.EventHandler(this.gridClients_CurrentCellDirtyStateChanged);
             this.gridClients.SelectionChanged += new System.EventHandler(this.gridClients_SelectionChanged);
             this.gridClients.UserDeletingRow += new System.Windows.Forms.DataGridViewRowCancelEventHandler(this.gridClients_UserDeletingRow);
             //
             // colDescription
             //
+            this.colInfo.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.colInfo.HeaderText = "";
+            this.colInfo.Image = global::NMaier.SimpleDlna.GUI.Properties.Resources.info;
+            this.colInfo.ImageLayout = System.Windows.Forms.DataGridViewImageCellLayout.Normal;
+            this.colInfo.Name = "colInfo";
+            this.colInfo.ReadOnly = true;
+            this.colInfo.Resizable = System.Windows.Forms.DataGridViewTriState.False;
+            this.colInfo.ToolTipText = "Client details";
+            this.colInfo.Width = 24;
             this.colDescription.DataPropertyName = "Description";
             this.colDescription.FillWeight = 35F;
             this.colDescription.HeaderText = "Description";
@@ -369,6 +382,7 @@ namespace NMaier.SimpleDlna.GUI
     private System.Windows.Forms.TabPage tabGeneral;
     private System.Windows.Forms.TabPage tabClients;
     private System.Windows.Forms.DataGridView gridClients;
+    private System.Windows.Forms.DataGridViewImageColumn colInfo;
     private System.Windows.Forms.DataGridViewTextBoxColumn colDescription;
     private System.Windows.Forms.DataGridViewCheckBoxColumn colTranscodeAudio;
     private System.Windows.Forms.DataGridViewTextBoxColumn colLastSeen;

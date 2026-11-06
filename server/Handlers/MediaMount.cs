@@ -96,6 +96,14 @@ namespace NMaier.SimpleDlna.Server
         var id = path.Split('/')[1];
         InfoFormat("Serving file {0}", id);
         var item = GetItem(id) as IMediaResource;
+        if (request.Client?.TranscodeAudio == true) {
+          var stereo = StereoAudioTranscoder.GetStereoFile(item);
+          if (stereo != null) {
+            InfoFormat(
+              "Serving {0} with stereo audio to {1}", id, request.Client);
+            return new ItemResponse(Prefix, request, item, stereo);
+          }
+        }
         return new ItemResponse(Prefix, request, item);
       }
       if (path.StartsWith("cover/", StringComparison.Ordinal)) {

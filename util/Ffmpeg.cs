@@ -38,6 +38,19 @@ namespace NMaier.SimpleDlna.Utilities
     private static readonly Regex regDimensions = new Regex(
       @"Video: .+ ([0-9]{2,})x([0-9]{2,}) ", RegexOptions.Compiled);
 
+    // e.g. "Stream #0:1(eng): Audio: ac3, 48000 Hz, 5.1(side), fltp"
+    private static readonly Regex regAudioLayout = new Regex(
+      @"Stream #[^:]+:[^:]+: Audio: [^,]+, [0-9]+ Hz, ([^,\r\n]+)",
+      RegexOptions.Compiled);
+
+    private static readonly Regex regChannelCount = new Regex(
+      @"^([0-9]+) channels", RegexOptions.Compiled);
+
+    private static readonly Regex regChannelLayout = new Regex(
+      @"^([0-9]+)\.([0-9]+)", RegexOptions.Compiled);
+
+    private static readonly TimeSpan remuxTimeout = TimeSpan.FromHours(1);
+
     public static readonly string FFmpegExecutable =
           FindExecutable("ffmpeg");
     private static DirectoryInfo GetFFMpegFolder(
@@ -237,6 +250,16 @@ namespace NMaier.SimpleDlna.Utilities
                 rv.Add("VIDEO_HEIGHT", h.ToString());
               }
             }
+            // First audio stream only
+            match = regAudioLayout.Match(output);
+            if (match.Success)
+            {
+              var channels = ParseChannels(match.Groups[1].Value);
+              if (channels > 0)
+              {
+                rv.Add("AUDIO_CHANNELS", channels.ToString());
+              }
+            }
           }
         }
         if (rv.Count == 0)
@@ -352,6 +375,165 @@ namespace NMaier.SimpleDlna.Utilities
       }
       throw new NotSupportedException(
         "File does not contain a valid subtitle");
+    }
+
+    private static int ParseChannels(string layout)
+    {
+      layout = layout.Trim().ToLowerInvariant();
+      if (layout == "mono")
+      {
+        return 1;
+      }
+      if (layout.StartsWith("stereo", StringComparison.Ordinal) ||
+          layout == "downmix")
+      {
+        return 2;
+      }
+      var match = regChannelCount.Match(layout);
+      if (match.Success)
+      {
+        return int.Parse(match.Groups[1].Value);
+      }
+      // 5.1 -> 6, 7.1(wide) -> 8, 3.0 -> 3
+      match = regChannelLayout.Match(layout);
+      if (match.Success)
+      {
+        return int.Parse(match.Groups[1].Value) +
+               int.Parse(match.Groups[2].Value);
+      }
+      switch (layout)
+      {
+        case "quad":
+        case "quad(side)":
+          return 4;
+        case "hexagonal":
+          return 6;
+        case "octagonal":
+          return 8;
+        default:
+          return 0;
+      }
+    }
+
+    /// <summary>
+    ///   Channel count of the first audio stream, or 0 if unknown
+    /// </summary>
+    public static int GetFirstAudioChannels(FileInfo file)
+    {
+      string sc;
+      int channels;
+      if (IdentifyFile(file).TryGetValue("AUDIO_CHANNELS", out sc) &&
+          int.TryParse(sc, out channels))
+      {
+        return channels;
+      }
+      return 0;
+    }
+
+    /// <summary>
+    ///   Copies a file to output, converting the first audio stream to AAC
+    ///   stereo. All other streams are copied unchanged where the container
+    ///   allows it; otherwise only the first video and audio are kept.
+    ///   The output container is chosen from the output's extension.
+    /// </summary>
+    public static void RemuxWithStereoAudio(FileInfo source, FileInfo output)
+    {
+      if (FFmpegExecutable == null)
+      {
+        throw new NotSupportedException("ffmpeg not found");
+      }
+      if (source == null)
+      {
+        throw new ArgumentNullException(nameof(source));
+      }
+      if (output == null)
+      {
+        throw new ArgumentNullException(nameof(output));
+      }
+      const string stereo =
+        "-c:a:0 aac -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096";
+      var attempts = new[]
+      {
+        // Everything, as the container allows (keeps subtitles etc.)
+        $"-map 0 -c copy {stereo}",
+        // Just the main video and audio
+        $"-map 0:v:0? -map 0:a:0 -c copy {stereo}"
+      };
+      // Keep the extension so ffmpeg picks the same container
+      var temp = Path.Combine(
+        output.DirectoryName ?? string.Empty,
+        Path.GetFileNameWithoutExtension(output.Name) + ".partial" +
+        output.Extension);
+      var log = LogManager.GetLogger(typeof(FFmpeg));
+      string errors = null;
+      foreach (var args in attempts)
+      {
+        errors = RunFFmpeg(
+          $"-nostdin -hide_banner -loglevel error -y -i \"{source.FullName}\" {args} \"{temp}\"");
+        if (errors == null)
+        {
+          if (File.Exists(output.FullName))
+          {
+            File.Delete(output.FullName);
+          }
+          File.Move(temp, output.FullName);
+          return;
+        }
+        log.DebugFormat("ffmpeg {0} failed for {1}: {2}", args, source.FullName, errors);
+      }
+      try
+      {
+        File.Delete(temp);
+      }
+      catch (Exception)
+      {
+        // ignored
+      }
+      throw new NotSupportedException($"ffmpeg failed: {errors}");
+    }
+
+    /// <summary>
+    ///   Runs ffmpeg to completion. Returns null on success, otherwise the
+    ///   error output.
+    /// </summary>
+    private static string RunFFmpeg(string arguments)
+    {
+      using (var p = new Process())
+      {
+        var sti = p.StartInfo;
+        sti.CreateNoWindow = true;
+        sti.UseShellExecute = false;
+        sti.FileName = FFmpegExecutable;
+        sti.Arguments = arguments;
+        sti.LoadUserProfile = false;
+        sti.RedirectStandardError = true;
+        var errors = new System.Text.StringBuilder();
+        p.ErrorDataReceived += (s, e) =>
+        {
+          if (e.Data != null)
+          {
+            lock (errors)
+            {
+              errors.AppendLine(e.Data);
+            }
+          }
+        };
+        p.Start();
+        p.BeginErrorReadLine();
+        if (!p.WaitForExit((int)remuxTimeout.TotalMilliseconds))
+        {
+          p.Kill();
+          return "ffmpeg timed out";
+        }
+        // Flush the asynchronous error reader
+        p.WaitForExit();
+        lock (errors)
+        {
+          return p.ExitCode == 0
+            ? null
+            : $"exit code {p.ExitCode}: {errors.ToString().Trim()}";
+        }
+      }
     }
 
     public static IDictionary<string, string> IdentifyFile(FileInfo file)

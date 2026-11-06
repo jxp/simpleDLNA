@@ -109,6 +109,7 @@ namespace NMaier.SimpleDlna.GUI
         }
 
         Utilities.MKVTools.Initialise(config.mkvTools);
+        StereoAudioTranscoder.CacheDirectory = cacheFile.DirectoryName;
         LoadClients();
         CreateHandle();
         SetupServer();

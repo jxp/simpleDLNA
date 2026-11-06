@@ -197,6 +197,8 @@ namespace NMaier.SimpleDlna
         }
         if (options.CacheFile != null) {
           fs.SetCacheFile(options.CacheFile);
+          StereoAudioTranscoder.CacheDirectory =
+            options.CacheFile.DirectoryName;
         }
         fs.Load();
         if (!options.Rescanning) {

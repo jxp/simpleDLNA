@@ -9,15 +9,32 @@ namespace NMaier.SimpleDlna.Server
   {
     private readonly Headers headers;
 
+    private readonly FileInfo content;
+
     private readonly IMediaResource item;
 
     public ItemResponse(string prefix, IRequest request, IMediaResource item,
       string transferMode = "Streaming")
+      : this(prefix, request, item, null, transferMode)
+    {
+    }
+
+    /// <summary>
+    ///   Serves content (e.g. a transcoded copy) in place of the item's own
+    ///   data, while describing it as the item.
+    /// </summary>
+    public ItemResponse(string prefix, IRequest request, IMediaResource item,
+      FileInfo content, string transferMode = "Streaming")
     {
       this.item = item;
+      this.content = content;
       headers = new ResponseHeaders(!(item is IMediaCoverResource));
       var meta = item as IMetaInfo;
-      if (meta != null) {
+      if (content != null) {
+        headers.Add("Content-Length", content.Length.ToString());
+        headers.Add("Last-Modified", content.LastWriteTimeUtc.ToString("R"));
+      }
+      else if (meta != null) {
         headers.Add("Content-Length", meta.InfoSize.ToString());
         headers.Add("Last-Modified", meta.InfoDate.ToString("R"));
       }
@@ -61,7 +78,11 @@ namespace NMaier.SimpleDlna.Server
       Debug(headers);
     }
 
-    public Stream Body => item.CreateContentStream();
+    public Stream Body => content == null
+      ? item.CreateContentStream()
+      : new FileStream(
+        content.FullName, FileMode.Open, FileAccess.Read,
+        FileShare.ReadWrite | FileShare.Delete);
 
     public IHeaders Headers => headers;
 

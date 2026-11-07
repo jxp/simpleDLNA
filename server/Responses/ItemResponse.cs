@@ -13,9 +13,11 @@ namespace NMaier.SimpleDlna.Server
 
     private readonly IMediaResource item;
 
+    private readonly Func<Stream> liveBody;
+
     public ItemResponse(string prefix, IRequest request, IMediaResource item,
       string transferMode = "Streaming")
-      : this(prefix, request, item, null, transferMode)
+      : this(prefix, request, item, null, null, transferMode)
     {
     }
 
@@ -25,12 +27,33 @@ namespace NMaier.SimpleDlna.Server
     /// </summary>
     public ItemResponse(string prefix, IRequest request, IMediaResource item,
       FileInfo content, string transferMode = "Streaming")
+      : this(prefix, request, item, content, null, transferMode)
+    {
+    }
+
+    /// <summary>
+    ///   Serves data whose length isn't known yet (a copy still being made):
+    ///   no Content-Length or seeking, and the connection is closed at the
+    ///   end, which is how the client knows it has everything.
+    /// </summary>
+    public ItemResponse(string prefix, IRequest request, IMediaResource item,
+      Func<Stream> liveBody)
+      : this(prefix, request, item, null, liveBody, "Streaming")
+    {
+    }
+
+    private ItemResponse(string prefix, IRequest request, IMediaResource item,
+      FileInfo content, Func<Stream> liveBody, string transferMode)
     {
       this.item = item;
       this.content = content;
+      this.liveBody = liveBody;
       headers = new ResponseHeaders(!(item is IMediaCoverResource));
       var meta = item as IMetaInfo;
-      if (content != null) {
+      if (liveBody != null) {
+        headers["Connection"] = "close";
+      }
+      else if (content != null) {
         headers.Add("Content-Length", content.Length.ToString());
         headers.Add("Last-Modified", content.LastWriteTimeUtc.ToString("R"));
       }
@@ -38,8 +61,12 @@ namespace NMaier.SimpleDlna.Server
         headers.Add("Content-Length", meta.InfoSize.ToString());
         headers.Add("Last-Modified", meta.InfoDate.ToString("R"));
       }
-      headers.Add("Accept-Ranges", "bytes");
+      if (liveBody == null) {
+        headers.Add("Accept-Ranges", "bytes");
+      }
       headers.Add("Content-Type", DlnaMaps.Mime[item.Type]);
+      // OP=01: byte seeking supported, OP=00: none
+      var seek = liveBody == null ? "01" : "00";
 
       if (request.Headers.ContainsKey("getcontentFeatures.dlna.org")) {
         try {
@@ -47,7 +74,7 @@ namespace NMaier.SimpleDlna.Server
             "contentFeatures.dlna.org",
             item.MediaType == DlnaMediaTypes.Image
               ? $"DLNA.ORG_PN={item.PN};DLNA.ORG_OP=00;DLNA.ORG_CI=0;DLNA.ORG_FLAGS={DlnaMaps.DefaultInteractive}"
-              : $"DLNA.ORG_PN={item.PN};DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS={DlnaMaps.DefaultStreaming}"
+              : $"DLNA.ORG_PN={item.PN};DLNA.ORG_OP={seek};DLNA.ORG_CI=0;DLNA.ORG_FLAGS={DlnaMaps.DefaultStreaming}"
             );
         }
         catch (NotSupportedException) {
@@ -78,7 +105,9 @@ namespace NMaier.SimpleDlna.Server
       Debug(headers);
     }
 
-    public Stream Body => content == null
+    public Stream Body => liveBody != null
+      ? liveBody()
+      : content == null
       ? item.CreateContentStream()
       : new FileStream(
         content.FullName, FileMode.Open, FileAccess.Read,

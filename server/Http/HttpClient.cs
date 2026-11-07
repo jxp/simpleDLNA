@@ -175,6 +175,11 @@ namespace NMaier.SimpleDlna.Server
             !Headers.TryGetValue("Range", out ar)) {
           return responseBody;
         }
+        if (contentLength < 0) {
+          // Length unknown (still being written): send it all from the start
+          DebugFormat("{0} - Ignoring Range {1}, length unknown", this, ar);
+          return responseBody;
+        }
         var m = bytes.Match(ar);
         if (!m.Success) {
           throw new InvalidDataException("Not parsed!");
@@ -351,8 +356,13 @@ namespace NMaier.SimpleDlna.Server
           if (result == StreamPumpResult.Delivered) {
             DebugFormat("{0} - Done writing response", this);
 
-            string conn;
-            if (Headers.TryGetValue("connection", out conn) &&
+            string conn, responseConn;
+            // A response without a length ends when the connection does
+            var mustClose =
+              response.Headers.TryGetValue("Connection", out responseConn) &&
+              responseConn.ToUpperInvariant() == "CLOSE";
+            if (!mustClose &&
+                Headers.TryGetValue("connection", out conn) &&
                 conn.ToUpperInvariant() == "KEEP-ALIVE") {
               ReadNext();
               return;

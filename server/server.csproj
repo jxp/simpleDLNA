@@ -93,6 +93,7 @@
     <Compile Include="Http\ClientRegistry.cs" />
     <Compile Include="Http\HttpAuthorizer.cs" />
     <Compile Include="Types\ClientInfo.cs" />
+    <Compile Include="Types\GrowingFileStream.cs" />
     <Compile Include="Types\StereoAudioTranscoder.cs" />
     <Compile Include="Types\DlnaFlags.cs" />
     <Compile Include="Types\DlnaMaps.cs" />

@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using log4net;
 using NMaier.SimpleDlna.Utilities;
 
@@ -151,12 +152,34 @@ namespace NMaier.SimpleDlna.Server
     }
 
     /// <summary>
+    ///   How long a request waits for a new copy before deciding whether to
+    ///   keep waiting or to stream it while it's being made.
+    /// </summary>
+    public static TimeSpan StreamDelay { get; set; } = TimeSpan.FromSeconds(25);
+
+    /// <summary>
+    ///   Keep waiting for the complete copy (with seeking and duration) when
+    ///   it's expected within this long of the request. Keep it under the
+    ///   client's own timeout (about 2 minutes on the TVs tested).
+    /// </summary>
+    public static TimeSpan MaxWaitForFullFile { get; set; } =
+      TimeSpan.FromSeconds(90);
+
+    // Copy path -> the transcode making it, shared by all requests for it
+    private static readonly ConcurrentDictionary<string, Lazy<Job>> jobs =
+      new ConcurrentDictionary<string, Lazy<Job>>(
+        StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     ///   The stereo copy of a video whose first audio stream has more than
-    ///   two channels, creating it first if needed (which blocks until done).
+    ///   two channels, starting it if needed. Waits for a new copy as set by
+    ///   StreamDelay and MaxWaitForFullFile; if it's still not done (and the
+    ///   container allows), returns it in progress to stream as it's made.
     ///   Returns null when no copy is needed or it can't be made.
     /// </summary>
-    public static FileInfo GetStereoFile(IMediaResource item)
+    public static StereoCopy GetStereoCopy(IMediaResource item)
     {
+      var requested = DateTime.Now;
       if (item?.MediaType != DlnaMediaTypes.Video ||
           string.IsNullOrWhiteSpace(CacheDirectory) ||
           FFmpeg.FFmpegExecutable == null) {
@@ -181,49 +204,198 @@ namespace NMaier.SimpleDlna.Server
       var output = new FileInfo(GetOutputPath(source));
       lock (locks.GetOrAdd(output.FullName, k => new object())) {
         output.Refresh();
-        if (output.Exists && output.Length > 0 &&
+        if (!jobs.ContainsKey(output.FullName) &&
+            output.Exists && output.Length > 0 &&
             output.LastWriteTimeUtc >= source.LastWriteTimeUtc) {
           wanted[version] = true;
           served[output.FullName] = DateTime.Now;
-          return output;
+          return new StereoCopy(output);
         }
-
-        try {
-          if (!wanted.TryGetValue(version, out want)) {
+        if (!wanted.TryGetValue(version, out want)) {
+          try {
             var channels = FFmpeg.GetFirstAudioChannels(source);
             want = channels > 2;
-            wanted[version] = want;
             log.DebugFormat(
               "{0}: first audio stream has {1} channels", source.FullName,
               channels);
           }
-          if (!want) {
-            return null;
+          catch (Exception ex) {
+            log.Warn($"Failed to read audio channels of {source.FullName}", ex);
+            want = false;
           }
+          wanted[version] = want;
+        }
+        if (!want) {
+          return null;
+        }
+      }
 
+      var job = jobs.GetOrAdd(
+        output.FullName,
+        k => new Lazy<Job>(() => StartJob(source, output, version))).Value;
+      if (job.Task.Wait(StreamDelay)) {
+        return Finished(job);
+      }
+      if (!FFmpeg.IsStreamable(output.Extension)) {
+        // A partly written MP4 can't be played, so wait for all of it
+        job.Task.Wait();
+        return Finished(job);
+      }
+
+      // Worth waiting for the complete file if it will be done in time
+      for (;;) {
+        var waited = DateTime.Now - requested;
+        var remaining = job.EstimateRemaining();
+        if (remaining == null || waited + remaining.Value > MaxWaitForFullFile) {
+          log.InfoFormat(
+            "{0} needs about {1} more; streaming it while it's made (no seeking)",
+            output.Name,
+            remaining == null ? "unknown" : $"{remaining.Value.TotalSeconds:0}s");
+          break;
+        }
+        log.DebugFormat(
+          "{0} needs about {1:0}s more; waiting for all of it",
+          output.Name, remaining.Value.TotalSeconds);
+        if (job.Task.Wait(TimeSpan.FromSeconds(1))) {
+          return Finished(job);
+        }
+      }
+      return job.Task.IsCompleted
+        ? Finished(job)
+        : new StereoCopy(job.PartialPath, job.Task);
+    }
+
+    private static StereoCopy Finished(Job job)
+    {
+      var file = job.Task.Result;
+      if (file == null) {
+        return null;
+      }
+      served[file.FullName] = DateTime.Now;
+      return new StereoCopy(file);
+    }
+
+    private static Job StartJob(FileInfo source, FileInfo output,
+      string version)
+    {
+      var job = new Job(source, FFmpeg.GetPartialPath(output));
+      job.Task = Task.Run(() => {
+        try {
           Directory.CreateDirectory(CacheDirectory);
           log.InfoFormat(
             "Transcoding audio to stereo: {0} -> {1}", source.FullName,
             output.FullName);
-          var started = DateTime.Now;
-          FFmpeg.RemuxWithStereoAudio(source, output);
+          FFmpeg.RemuxWithStereoAudio(source, output, job.Progress);
           output.Refresh();
+          DateTime retryAt;
           failed.TryRemove(version, out retryAt);
-          served[output.FullName] = DateTime.Now;
           log.InfoFormat(
             "Transcoded {0} in {1:0.0}s", output.Name,
-            (DateTime.Now - started).TotalSeconds);
+            (DateTime.Now - job.Started).TotalSeconds);
           return output;
         }
         catch (Exception ex) {
-          retryAt = DateTime.Now + retryFailedAfter;
+          var retryAt = DateTime.Now + retryFailedAfter;
           failed[version] = retryAt;
           log.Error(
             $"Failed to transcode audio of {source.FullName}; serving the original until {retryAt:T}",
             ex);
           return null;
         }
+        finally {
+          Lazy<Job> done;
+          jobs.TryRemove(output.FullName, out done);
+        }
+      });
+      return job;
+    }
+
+    private sealed class Job
+    {
+      // Source duration in seconds, 0 if unknown
+      private readonly double duration;
+
+      private readonly long expectedSize;
+
+      // How far through the source ffmpeg is, in ticks
+      private long done;
+
+      public Job(FileInfo source, string partialPath)
+      {
+        PartialPath = partialPath;
+        // Only a fallback: how much smaller the copy is depends on how much
+        // of the file was multichannel audio
+        expectedSize = source.Length;
+        try {
+          duration = FFmpeg.GetFileDuration(source);
+        }
+        catch (Exception) {
+          duration = 0;
+        }
+      }
+
+      public string PartialPath { get; }
+
+      public DateTime Started { get; } = DateTime.Now;
+
+      public Task<FileInfo> Task { get; set; }
+
+      public void Progress(TimeSpan position)
+      {
+        Interlocked.Exchange(ref done, position.Ticks);
+      }
+
+      /// <summary>
+      ///   From how far through the source ffmpeg is, or failing that how
+      ///   fast the copy is growing; null until either is known
+      /// </summary>
+      public TimeSpan? EstimateRemaining()
+      {
+        var elapsed = (DateTime.Now - Started).TotalSeconds;
+        var position = TimeSpan.FromTicks(Interlocked.Read(ref done))
+          .TotalSeconds;
+        if (duration > 0 && position > 0 && elapsed > 0) {
+          return TimeSpan.FromSeconds(
+            elapsed * Math.Max(0, duration - position) / position);
+        }
+        try {
+          var written = new FileInfo(PartialPath).Length;
+          if (written <= 0 || elapsed <= 0) {
+            return null;
+          }
+          return TimeSpan.FromSeconds(
+            Math.Max(0, expectedSize - written) / (written / elapsed));
+        }
+        catch (Exception) {
+          return null;
+        }
       }
     }
+  }
+
+  /// <summary>
+  ///   A stereo copy that is either complete (File) or still being written
+  ///   (PartialPath, finished when Completion is).
+  /// </summary>
+  public sealed class StereoCopy
+  {
+    internal StereoCopy(FileInfo file)
+    {
+      File = file;
+    }
+
+    internal StereoCopy(string partialPath, Task<FileInfo> completion)
+    {
+      PartialPath = partialPath;
+      Completion = completion;
+    }
+
+    public Task<FileInfo> Completion { get; }
+
+    public FileInfo File { get; }
+
+    public bool IsComplete => File != null;
+
+    public string PartialPath { get; }
   }
 }

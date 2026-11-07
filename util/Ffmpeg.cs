@@ -460,8 +460,10 @@ namespace NMaier.SimpleDlna.Utilities
     ///   stereo. All other streams are copied unchanged where the container
     ///   allows it; otherwise only the first video and audio are kept.
     ///   The output container is chosen from the output's extension.
+    ///   progress, if given, is told how far through the source ffmpeg is.
     /// </summary>
-    public static void RemuxWithStereoAudio(FileInfo source, FileInfo output)
+    public static void RemuxWithStereoAudio(FileInfo source, FileInfo output,
+      Action<TimeSpan> progress = null)
     {
       if (FFmpegExecutable == null)
       {
@@ -487,30 +489,18 @@ namespace NMaier.SimpleDlna.Utilities
         // Just the main video and audio
         $"-map 0:v:0? -map 0:a:0 -c copy {stereo}"
       };
-      // Write to a name that doesn't look like a video, so media scanners
-      // (including our own folder watcher) leave it alone until it's done.
-      // ffmpeg then needs telling the container, as it can't guess it.
-      string temp, format;
+      var temp = GetPartialPath(output);
       string muxer;
-      if (muxers.TryGetValue(output.Extension, out muxer))
-      {
-        temp = output.FullName + ".partial";
-        format = $"-f {muxer}";
-      }
-      else
-      {
-        temp = Path.Combine(
-          output.DirectoryName ?? string.Empty,
-          Path.GetFileNameWithoutExtension(output.Name) + ".partial" +
-          output.Extension);
-        format = string.Empty;
-      }
+      var format = muxers.TryGetValue(output.Extension, out muxer)
+        ? $"-f {muxer}"
+        : string.Empty;
       var log = LogManager.GetLogger(typeof(FFmpeg));
       string errors = null;
       foreach (var args in attempts)
       {
         errors = RunFFmpeg(
-          $"-nostdin -hide_banner -loglevel error -y -i \"{source.FullName}\" {args} {format} \"{temp}\"");
+          $"-nostdin -hide_banner -loglevel error -y -i \"{source.FullName}\" {args} {format} \"{temp}\"",
+          progress);
         if (errors == null)
         {
           ReplaceWithRetry(temp, output.FullName);
@@ -527,6 +517,35 @@ namespace NMaier.SimpleDlna.Utilities
         // ignored
       }
       throw new NotSupportedException($"ffmpeg failed: {errors}");
+    }
+
+    /// <summary>
+    ///   Where RemuxWithStereoAudio writes output until it's complete.
+    ///   A name that doesn't look like a video, so media scanners (including
+    ///   our own folder watcher) leave it alone. ffmpeg is then told the
+    ///   container, as it can't guess it from the name.
+    /// </summary>
+    public static string GetPartialPath(FileInfo output)
+    {
+      if (muxers.ContainsKey(output.Extension))
+      {
+        return output.FullName + ".partial";
+      }
+      return Path.Combine(
+        output.DirectoryName ?? string.Empty,
+        Path.GetFileNameWithoutExtension(output.Name) + ".partial" +
+        output.Extension);
+    }
+
+    /// <summary>
+    ///   Whether a partly written file in this container can already be
+    ///   played. Not MP4 and similar, whose index is written last.
+    /// </summary>
+    public static bool IsStreamable(string extension)
+    {
+      string muxer;
+      return muxers.TryGetValue(extension, out muxer) &&
+             (muxer == "matroska" || muxer == "webm" || muxer == "mpegts");
     }
 
     /// <summary>
@@ -566,7 +585,8 @@ namespace NMaier.SimpleDlna.Utilities
     ///   Runs ffmpeg to completion. Returns null on success, otherwise the
     ///   error output.
     /// </summary>
-    private static string RunFFmpeg(string arguments)
+    private static string RunFFmpeg(string arguments,
+      Action<TimeSpan> progress = null)
     {
       using (var p = new Process())
       {
@@ -574,9 +594,29 @@ namespace NMaier.SimpleDlna.Utilities
         sti.CreateNoWindow = true;
         sti.UseShellExecute = false;
         sti.FileName = FFmpegExecutable;
-        sti.Arguments = arguments;
+        sti.Arguments = progress == null
+          ? arguments
+          : "-progress pipe:1 " + arguments;
         sti.LoadUserProfile = false;
         sti.RedirectStandardError = true;
+        sti.RedirectStandardOutput = progress != null;
+        if (progress != null)
+        {
+          // Lines of key=value every half second or so; out_time_ms is in
+          // microseconds, despite its name
+          p.OutputDataReceived += (s, e) =>
+          {
+            const string key = "out_time_ms=";
+            long us;
+            if (e.Data != null &&
+                e.Data.StartsWith(key, StringComparison.Ordinal) &&
+                long.TryParse(e.Data.Substring(key.Length), out us) &&
+                us > 0)
+            {
+              progress(TimeSpan.FromTicks(us * 10));
+            }
+          };
+        }
         var errors = new System.Text.StringBuilder();
         p.ErrorDataReceived += (s, e) =>
         {
@@ -590,6 +630,10 @@ namespace NMaier.SimpleDlna.Utilities
         };
         p.Start();
         p.BeginErrorReadLine();
+        if (progress != null)
+        {
+          p.BeginOutputReadLine();
+        }
         if (!p.WaitForExit((int)remuxTimeout.TotalMilliseconds))
         {
           p.Kill();

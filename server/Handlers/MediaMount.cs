@@ -97,11 +97,20 @@ namespace NMaier.SimpleDlna.Server
         InfoFormat("Serving file {0}", id);
         var item = GetItem(id) as IMediaResource;
         if (request.Client?.TranscodeAudio == true) {
-          var stereo = StereoAudioTranscoder.GetStereoFile(item);
-          if (stereo != null) {
+          var stereo = StereoAudioTranscoder.GetStereoCopy(item);
+          if (stereo != null && stereo.IsComplete) {
             InfoFormat(
               "Serving {0} with stereo audio to {1}", id, request.Client);
-            return new ItemResponse(Prefix, request, item, stereo);
+            return new ItemResponse(Prefix, request, item, stereo.File);
+          }
+          if (stereo != null) {
+            InfoFormat(
+              "Streaming {0} with stereo audio to {1} while it's being made",
+              id, request.Client);
+            return new ItemResponse(
+              Prefix, request, item,
+              () => new GrowingFileStream(
+                stereo.PartialPath, stereo.Completion));
           }
         }
         return new ItemResponse(Prefix, request, item);

@@ -53,6 +53,10 @@ namespace NMaier.SimpleDlna.Server
 
     private readonly HttpServer owner;
 
+    // Matches the longest a transcode may take (FFmpeg.remuxTimeout)
+    private readonly uint processingTimeout =
+      (uint)TimeSpan.FromHours(1).TotalSeconds;
+
     private readonly uint readTimeout =
       (uint)TimeSpan.FromMinutes(1).TotalSeconds;
 
@@ -104,8 +108,11 @@ namespace NMaier.SimpleDlna.Server
         switch (state) {
         case HttpStates.Accepted:
         case HttpStates.ReadBegin:
-        case HttpStates.WriteBegin:
           return diff > BEGIN_TIMEOUT;
+        case HttpStates.WriteBegin:
+          // The server is still preparing the response, e.g. transcoding a
+          // file first, so don't give up on the client while it waits
+          return diff > processingTimeout;
         case HttpStates.Reading:
           return diff > readTimeout;
         case HttpStates.Writing:

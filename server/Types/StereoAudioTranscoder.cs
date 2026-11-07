@@ -3,13 +3,15 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using log4net;
 using NMaier.SimpleDlna.Utilities;
 
 namespace NMaier.SimpleDlna.Server
 {
   /// <summary>
-  ///   Makes copies of videos with stereo AAC audio, for clients that can't
+  ///   Makes copies of videos with stereo AC3 audio, for clients that can't
   ///   play multichannel audio (ClientInfo.TranscodeAudio). Copies are kept
   ///   in the cache directory and reused until the source changes.
   /// </summary>
@@ -38,10 +40,97 @@ namespace NMaier.SimpleDlna.Server
       new ConcurrentDictionary<string, DateTime>(
         StringComparer.OrdinalIgnoreCase);
 
+    // Copies not made or served for this long are deleted
+    private static readonly TimeSpan maxAge = TimeSpan.FromDays(7);
+
+    private static readonly TimeSpan cleanupInterval = TimeSpan.FromHours(6);
+
+    // Name_1A2B3C4D.mkv, or Name_1A2B3C4D.mkv.partial left by a failed run
+    private static readonly Regex copyName = new Regex(
+      @"_[0-9A-F]{8}\.([^.]+)(\.partial)?$",
+      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    // Copy path -> when it was last served (since this process started)
+    private static readonly ConcurrentDictionary<string, DateTime> served =
+      new ConcurrentDictionary<string, DateTime>(
+        StringComparer.OrdinalIgnoreCase);
+
+    private static Timer cleanupTimer;
+
+    private static string cacheDirectory;
+
     /// <summary>
     ///   Where the stereo copies go. Transcoding is off while this is unset.
+    ///   Setting it starts the periodic clean up of old copies.
     /// </summary>
-    public static string CacheDirectory { get; set; }
+    public static string CacheDirectory
+    {
+      get { return cacheDirectory; }
+      set {
+        cacheDirectory = value;
+        if (cleanupTimer == null && !string.IsNullOrWhiteSpace(value)) {
+          cleanupTimer = new Timer(
+            _ => DeleteOldCopies(), null, TimeSpan.FromMinutes(1),
+            cleanupInterval);
+        }
+      }
+    }
+
+    /// <summary>
+    ///   Deletes copies that haven't been made or served for over a week.
+    ///   Only files named like copies (see GetOutputPath) are touched.
+    /// </summary>
+    public static void DeleteOldCopies()
+    {
+      var dir = CacheDirectory;
+      if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir)) {
+        return;
+      }
+      var cutoff = DateTime.Now - maxAge;
+      var count = 0;
+      long bytes = 0;
+      try {
+        foreach (var file in new DirectoryInfo(dir).EnumerateFiles()) {
+          var match = copyName.Match(file.Name);
+          DlnaMediaTypes type;
+          if (!match.Success ||
+              !DlnaMaps.Ext2Media.TryGetValue(
+                match.Groups[1].Value.ToUpperInvariant(), out type) ||
+              type != DlnaMediaTypes.Video) {
+            continue;
+          }
+          var lastUsed = file.LastWriteTime;
+          DateTime lastServed;
+          if (served.TryGetValue(file.FullName, out lastServed) &&
+              lastServed > lastUsed) {
+            lastUsed = lastServed;
+          }
+          if (lastUsed > cutoff) {
+            continue;
+          }
+          try {
+            var length = file.Length;
+            file.Delete();
+            served.TryRemove(file.FullName, out lastServed);
+            count++;
+            bytes += length;
+            log.DebugFormat(
+              "Deleted old copy {0}, last used {1:g}", file.Name, lastUsed);
+          }
+          catch (Exception ex) {
+            log.Warn($"Failed to delete old copy {file.FullName}", ex);
+          }
+        }
+      }
+      catch (Exception ex) {
+        log.Warn($"Failed to clean up {dir}", ex);
+      }
+      if (count != 0) {
+        log.InfoFormat(
+          "Deleted {0} stereo copies unused for over {1} days ({2})", count,
+          maxAge.TotalDays, bytes.FormatFileSize());
+      }
+    }
 
     /// <summary>
     ///   e.g. C:\Media\Videos\2026\FacebookVideo1.mkv ->
@@ -95,6 +184,7 @@ namespace NMaier.SimpleDlna.Server
         if (output.Exists && output.Length > 0 &&
             output.LastWriteTimeUtc >= source.LastWriteTimeUtc) {
           wanted[version] = true;
+          served[output.FullName] = DateTime.Now;
           return output;
         }
 
@@ -119,6 +209,7 @@ namespace NMaier.SimpleDlna.Server
           FFmpeg.RemuxWithStereoAudio(source, output);
           output.Refresh();
           failed.TryRemove(version, out retryAt);
+          served[output.FullName] = DateTime.Now;
           log.InfoFormat(
             "Transcoded {0} in {1:0.0}s", output.Name,
             (DateTime.Now - started).TotalSeconds);

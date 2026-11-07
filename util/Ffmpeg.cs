@@ -456,7 +456,7 @@ namespace NMaier.SimpleDlna.Utilities
     }
 
     /// <summary>
-    ///   Copies a file to output, converting the first audio stream to AAC
+    ///   Copies a file to output, converting the first audio stream to AC3
     ///   stereo. All other streams are copied unchanged where the container
     ///   allows it; otherwise only the first video and audio are kept.
     ///   The output container is chosen from the output's extension.
@@ -475,8 +475,11 @@ namespace NMaier.SimpleDlna.Utilities
       {
         throw new ArgumentNullException(nameof(output));
       }
+      // AC3 encodes about 4x faster than ffmpeg's built-in AAC encoder.
+      // For clients that can't play AC3, use AAC instead:
+      //   "-c:a:0 aac -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096"
       const string stereo =
-        "-c:a:0 aac -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096";
+        "-c:a:0 ac3 -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096";
       var attempts = new[]
       {
         // Everything, as the container allows (keeps subtitles etc.)

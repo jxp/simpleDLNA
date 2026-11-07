@@ -265,6 +265,9 @@ namespace NMaier.SimpleDlna.FileMediaServer
             icomparer.Equals(e.FullPath, store.StoreFile.FullName)) {
           return;
         }
+        if (IsExcluded(e.FullPath)) {
+          return;
+        }
         var ext = string.Empty;
         if (!string.IsNullOrEmpty(e.FullPath)) {
           ext = Path.GetExtension(e.FullPath);
@@ -339,6 +342,9 @@ namespace NMaier.SimpleDlna.FileMediaServer
     private void OnRenamed(object source, RenamedEventArgs e)
     {
       try {
+        if (IsExcluded(e.FullPath) && IsExcluded(e.OldFullPath)) {
+          return;
+        }
         var ext = string.Empty;
         if (!string.IsNullOrEmpty(e.FullPath)) {
           ext = Path.GetExtension(e.FullPath);
@@ -483,6 +489,66 @@ namespace NMaier.SimpleDlna.FileMediaServer
       lock (ids) {
         return ids.Allowed(item);
       }
+    }
+
+    /// <summary>
+    ///   Hidden files and folders aren't served, and neither is the cache
+    ///   folder for transcoded copies, which may sit inside a served folder.
+    /// </summary>
+    internal static bool IsExcluded(FileSystemInfo info)
+    {
+      try {
+        return (info.Attributes & FileAttributes.Hidden) != 0 ||
+               IsInCacheDirectory(info.FullName);
+      }
+      catch (Exception) {
+        return false;
+      }
+    }
+
+    /// <summary>
+    ///   As above, for a changed path: also excluded when any folder between
+    ///   it and the served folder is hidden.
+    /// </summary>
+    private bool IsExcluded(string path)
+    {
+      if (string.IsNullOrEmpty(path)) {
+        return false;
+      }
+      if (IsInCacheDirectory(path)) {
+        return true;
+      }
+      try {
+        var file = new FileInfo(path);
+        if (file.Exists && (file.Attributes & FileAttributes.Hidden) != 0) {
+          return true;
+        }
+        for (var dir = file.Directory;
+          dir != null &&
+          !directories.Any(d => icomparer.Equals(d.FullName, dir.FullName));
+          dir = dir.Parent) {
+          if (dir.Exists && (dir.Attributes & FileAttributes.Hidden) != 0) {
+            return true;
+          }
+        }
+      }
+      catch (Exception) {
+        // Not excluded then
+      }
+      return false;
+    }
+
+    private static bool IsInCacheDirectory(string path)
+    {
+      var cache = StereoAudioTranscoder.CacheDirectory;
+      if (string.IsNullOrWhiteSpace(cache)) {
+        return false;
+      }
+      cache = Path.GetFullPath(cache).TrimEnd(Path.DirectorySeparatorChar);
+      return icomparer.Equals(path, cache) ||
+             path.StartsWith(
+               cache + Path.DirectorySeparatorChar,
+               StringComparison.OrdinalIgnoreCase);
     }
 
     internal void DelayedRescan(WatcherChangeTypes changeType)

@@ -17,6 +17,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
       Server = server;
       this.dir = dir;
       var rawfiles = from f in dir.GetFiles("*.*")
+                     where !FileServer.IsExcluded(f)
                      select f;
       var files = new List<BaseFile>();
       foreach (var f in rawfiles) {
@@ -38,6 +39,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
       Resources.AddRange(files);
 
       Folders = (from d in dir.GetDirectories()
+                 where !FileServer.IsExcluded(d)
                  let m = TryGetFolder(server, d)
                  where m != null && m.ChildCount > 0
                  select m as IMediaFolder).ToList();

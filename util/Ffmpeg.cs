@@ -51,6 +51,31 @@ namespace NMaier.SimpleDlna.Utilities
 
     private static readonly TimeSpan remuxTimeout = TimeSpan.FromHours(1);
 
+    private static readonly TimeSpan moveTimeout = TimeSpan.FromMinutes(1);
+
+    // ffmpeg muxer for each output extension
+    private static readonly Dictionary<string, string> muxers =
+      new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+      {
+        {".mkv", "matroska"},
+        {".mk3d", "matroska"},
+        {".webm", "webm"},
+        {".mp4", "mp4"},
+        {".m4v", "mp4"},
+        {".mov", "mov"},
+        {".avi", "avi"},
+        {".ts", "mpegts"},
+        {".m2ts", "mpegts"},
+        {".mts", "mpegts"},
+        {".mpg", "mpeg"},
+        {".mpeg", "mpeg"},
+        {".wmv", "asf"},
+        {".asf", "asf"},
+        {".flv", "flv"},
+        {".3gp", "3gp"},
+        {".ogv", "ogg"}
+      };
+
     public static readonly string FFmpegExecutable =
           FindExecutable("ffmpeg");
     private static DirectoryInfo GetFFMpegFolder(
@@ -459,24 +484,33 @@ namespace NMaier.SimpleDlna.Utilities
         // Just the main video and audio
         $"-map 0:v:0? -map 0:a:0 -c copy {stereo}"
       };
-      // Keep the extension so ffmpeg picks the same container
-      var temp = Path.Combine(
-        output.DirectoryName ?? string.Empty,
-        Path.GetFileNameWithoutExtension(output.Name) + ".partial" +
-        output.Extension);
+      // Write to a name that doesn't look like a video, so media scanners
+      // (including our own folder watcher) leave it alone until it's done.
+      // ffmpeg then needs telling the container, as it can't guess it.
+      string temp, format;
+      string muxer;
+      if (muxers.TryGetValue(output.Extension, out muxer))
+      {
+        temp = output.FullName + ".partial";
+        format = $"-f {muxer}";
+      }
+      else
+      {
+        temp = Path.Combine(
+          output.DirectoryName ?? string.Empty,
+          Path.GetFileNameWithoutExtension(output.Name) + ".partial" +
+          output.Extension);
+        format = string.Empty;
+      }
       var log = LogManager.GetLogger(typeof(FFmpeg));
       string errors = null;
       foreach (var args in attempts)
       {
         errors = RunFFmpeg(
-          $"-nostdin -hide_banner -loglevel error -y -i \"{source.FullName}\" {args} \"{temp}\"");
+          $"-nostdin -hide_banner -loglevel error -y -i \"{source.FullName}\" {args} {format} \"{temp}\"");
         if (errors == null)
         {
-          if (File.Exists(output.FullName))
-          {
-            File.Delete(output.FullName);
-          }
-          File.Move(temp, output.FullName);
+          ReplaceWithRetry(temp, output.FullName);
           return;
         }
         log.DebugFormat("ffmpeg {0} failed for {1}: {2}", args, source.FullName, errors);
@@ -490,6 +524,39 @@ namespace NMaier.SimpleDlna.Utilities
         // ignored
       }
       throw new NotSupportedException($"ffmpeg failed: {errors}");
+    }
+
+    /// <summary>
+    ///   Moves source over destination. A newly written file is often held
+    ///   open for a while by virus scanners, indexers or thumbnailers, so
+    ///   keep trying for a minute before giving up.
+    /// </summary>
+    private static void ReplaceWithRetry(string source, string destination)
+    {
+      var deadline = DateTime.UtcNow + moveTimeout;
+      var delay = 250;
+      for (;;)
+      {
+        try
+        {
+          if (File.Exists(destination))
+          {
+            File.Delete(destination);
+          }
+          File.Move(source, destination);
+          return;
+        }
+        catch (Exception ex) when (
+          (ex is IOException || ex is UnauthorizedAccessException) &&
+          DateTime.UtcNow < deadline)
+        {
+          LogManager.GetLogger(typeof(FFmpeg)).DebugFormat(
+            "{0} is in use, retrying in {1}ms: {2}", source, delay,
+            ex.Message);
+          System.Threading.Thread.Sleep(delay);
+          delay = Math.Min(delay * 2, 4000);
+        }
+      }
     }
 
     /// <summary>

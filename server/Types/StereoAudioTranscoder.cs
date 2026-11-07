@@ -22,10 +22,20 @@ namespace NMaier.SimpleDlna.Server
       new ConcurrentDictionary<string, object>(
         StringComparer.OrdinalIgnoreCase);
 
+    private static readonly TimeSpan retryFailedAfter =
+      TimeSpan.FromMinutes(10);
+
     // Source version -> whether a stereo copy should be served. Avoids
-    // re-probing on every (range) request, and retrying failed transcodes.
+    // re-probing on every (range) request.
     private static readonly ConcurrentDictionary<string, bool> wanted =
       new ConcurrentDictionary<string, bool>(
+        StringComparer.OrdinalIgnoreCase);
+
+    // Source version -> when a failed transcode may be tried again. Until
+    // then the original is served, rather than every request waiting on
+    // another attempt.
+    private static readonly ConcurrentDictionary<string, DateTime> failed =
+      new ConcurrentDictionary<string, DateTime>(
         StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -73,6 +83,11 @@ namespace NMaier.SimpleDlna.Server
       if (wanted.TryGetValue(version, out want) && !want) {
         return null;
       }
+      DateTime retryAt;
+      if (failed.TryGetValue(version, out retryAt) &&
+          DateTime.Now < retryAt) {
+        return null;
+      }
 
       var output = new FileInfo(GetOutputPath(source));
       lock (locks.GetOrAdd(output.FullName, k => new object())) {
@@ -103,15 +118,18 @@ namespace NMaier.SimpleDlna.Server
           var started = DateTime.Now;
           FFmpeg.RemuxWithStereoAudio(source, output);
           output.Refresh();
+          failed.TryRemove(version, out retryAt);
           log.InfoFormat(
             "Transcoded {0} in {1:0.0}s", output.Name,
             (DateTime.Now - started).TotalSeconds);
           return output;
         }
         catch (Exception ex) {
-          // Serve the original from now on, until the source changes
-          wanted[version] = false;
-          log.Error($"Failed to transcode audio of {source.FullName}", ex);
+          retryAt = DateTime.Now + retryFailedAfter;
+          failed[version] = retryAt;
+          log.Error(
+            $"Failed to transcode audio of {source.FullName}; serving the original until {retryAt:T}",
+            ex);
           return null;
         }
       }

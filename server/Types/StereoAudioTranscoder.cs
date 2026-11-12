@@ -135,10 +135,10 @@ namespace NMaier.SimpleDlna.Server
 
     /// <summary>
     ///   e.g. C:\Media\Videos\2026\FacebookVideo1.mkv ->
-    ///   {CacheDirectory}\FacebookVideo1_572AD49E.mkv
+    ///   {CacheDirectory}\FacebookVideo1_AC3_572AD49E.mkv
     ///   The hash of the full path keeps same-named files apart.
     /// </summary>
-    public static string GetOutputPath(FileInfo source)
+    public static string GetOutputPath(FileInfo source, string encoder)
     {
       byte[] hash;
       using (var md5 = MD5.Create()) {
@@ -148,7 +148,7 @@ namespace NMaier.SimpleDlna.Server
       var suffix = BitConverter.ToString(hash, 0, 4).Replace("-", string.Empty);
       return Path.Combine(
         CacheDirectory,
-        $"{Path.GetFileNameWithoutExtension(source.Name)}_{suffix}{source.Extension}");
+        $"{Path.GetFileNameWithoutExtension(source.Name)}_{encoder}_{suffix}{source.Extension}");
     }
 
     /// <summary>
@@ -177,7 +177,7 @@ namespace NMaier.SimpleDlna.Server
     ///   container allows), returns it in progress to stream as it's made.
     ///   Returns null when no copy is needed or it can't be made.
     /// </summary>
-    public static StereoCopy GetStereoCopy(IMediaResource item)
+    public static StereoCopy GetStereoCopy(IMediaResource item, TranscodeMode mode)
     {
       var requested = DateTime.Now;
       if (item?.MediaType != DlnaMediaTypes.Video ||
@@ -201,7 +201,9 @@ namespace NMaier.SimpleDlna.Server
         return null;
       }
 
-      var output = new FileInfo(GetOutputPath(source));
+      var encoder = mode == TranscodeMode.Yes ? "aac" : "ac3";
+      var output = new FileInfo(GetOutputPath(source, encoder));
+
       lock (locks.GetOrAdd(output.FullName, k => new object())) {
         output.Refresh();
         if (!jobs.ContainsKey(output.FullName) &&
@@ -211,6 +213,21 @@ namespace NMaier.SimpleDlna.Server
           served[output.FullName] = DateTime.Now;
           return new StereoCopy(output);
         }
+        // Check if the advanced mode can fallback to the simple mode
+        if (mode == TranscodeMode.Advanced)
+        {
+          var outputFallback = new FileInfo(GetOutputPath(source, "aac"));
+          if (!jobs.ContainsKey(outputFallback.FullName) &&
+              outputFallback.Exists && outputFallback.Length > 0 &&
+              outputFallback.LastWriteTimeUtc >= source.LastWriteTimeUtc)
+          {
+            wanted[version] = true;
+            served[outputFallback.FullName] = DateTime.Now;
+            return new StereoCopy(outputFallback);
+          }
+
+        }
+
         if (!wanted.TryGetValue(version, out want)) {
           try {
             var channels = FFmpeg.GetFirstAudioChannels(source);
@@ -232,7 +249,7 @@ namespace NMaier.SimpleDlna.Server
 
       var job = jobs.GetOrAdd(
         output.FullName,
-        k => new Lazy<Job>(() => StartJob(source, output, version))).Value;
+        k => new Lazy<Job>(() => StartJob(source, output, version, mode))).Value;
       if (job.Task.Wait(StreamDelay)) {
         return Finished(job);
       }
@@ -276,7 +293,7 @@ namespace NMaier.SimpleDlna.Server
     }
 
     private static Job StartJob(FileInfo source, FileInfo output,
-      string version)
+      string version, TranscodeMode audioMode)
     {
       var job = new Job(source, FFmpeg.GetPartialPath(output));
       job.Task = Task.Run(() => {
@@ -285,7 +302,7 @@ namespace NMaier.SimpleDlna.Server
           log.InfoFormat(
             "Transcoding audio to stereo: {0} -> {1}", source.FullName,
             output.FullName);
-          FFmpeg.RemuxWithStereoAudio(source, output, job.Progress);
+          FFmpeg.RemuxWithStereoAudio(source, output, audioMode, job.Progress);
           output.Refresh();
           DateTime retryAt;
           failed.TryRemove(version, out retryAt);

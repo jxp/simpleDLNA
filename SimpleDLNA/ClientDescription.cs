@@ -1,3 +1,4 @@
+using NMaier.SimpleDlna.Utilities;
 using System;
 
 namespace NMaier.SimpleDlna.GUI
@@ -21,7 +22,7 @@ namespace NMaier.SimpleDlna.GUI
 
     public DateTime LastSeen { get; set; }
 
-    public bool TranscodeAudio { get; set; }
+    public TranscodeMode? TranscodeAudio { get; set; }
 
     public string UserAgent { get; set; }
   }

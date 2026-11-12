@@ -53,7 +53,7 @@ namespace NMaier.SimpleDlna.Server
     ///   main User-Agent as an existing one is merged into it.
     /// </summary>
     public ClientInfo Restore(IEnumerable<string> userAgents,
-      string description, bool transcodeAudio, DateTime lastSeen,
+      string description, TranscodeMode? transcodeAudio, DateTime lastSeen,
       IPAddress lastAddress)
     {
       var uas = (userAgents ?? Enumerable.Empty<string>())

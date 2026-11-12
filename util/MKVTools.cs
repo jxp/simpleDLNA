@@ -58,6 +58,7 @@ namespace NMaier.SimpleDlna.Utilities
           sti.Arguments = string.Format("--identify \"{0}\"", mkvFile);
           sti.LoadUserProfile = false;
           sti.RedirectStandardOutput = true;
+          sti.WindowStyle = ProcessWindowStyle.Minimized;
           p.Start();
 
           using (var reader = new StreamReader(StreamManager.GetStream()))
@@ -66,14 +67,28 @@ namespace NMaier.SimpleDlna.Utilities
               p.StandardOutput.BaseStream, reader.BaseStream, 4096))
             {
               pump.Pump(null);
-              if (!p.WaitForExit(3000))
+              if (!p.WaitForExit(2000))
               {
-                throw new NotSupportedException("mkvtools timed out");
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
+                throw new TimeoutException("mkvtools timed out");
               }
               if (!pump.Wait(1000))
               {
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 throw new NotSupportedException("mkvtools pump timed out");
               }
+              if (p.ExitCode != 0)
+              {
+                p.Kill();
+                throw new ArgumentException("mkvMerge does not understand the stream");
+              }
+
               reader.BaseStream.Seek(0, SeekOrigin.Begin);
 
               var output = reader.ReadToEnd();
@@ -124,9 +139,17 @@ namespace NMaier.SimpleDlna.Utilities
 
                 }
               }
+              if (!p.HasExited)
+              {
+                p.Kill();
+              }
               return matchedIndex;
             }
 
+          }
+          if (!p.HasExited)
+          {
+            p.Kill();
           }
         }
       }
@@ -147,6 +170,7 @@ namespace NMaier.SimpleDlna.Utilities
           sti.Arguments = string.Format("attachments \"{0}\" {1}:{2}", mkvFile, index, tempFile);
           sti.LoadUserProfile = false;
           sti.RedirectStandardOutput = true;
+          sti.WindowStyle = ProcessWindowStyle.Minimized;
           p.Start();
 
           using (var reader = new StreamReader(StreamManager.GetStream()))
@@ -155,14 +179,28 @@ namespace NMaier.SimpleDlna.Utilities
               p.StandardOutput.BaseStream, reader.BaseStream, 4096))
             {
               pump.Pump(null);
-              if (!p.WaitForExit(3000))
+              if (!p.WaitForExit(2000))
               {
-                throw new NotSupportedException("mkvtools timed out");
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
+                throw new TimeoutException("mkvtools timed out");
               }
               if (!pump.Wait(1000))
               {
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 throw new NotSupportedException("mkvtools pump timed out");
               }
+              if (p.ExitCode != 0)
+              {
+                p.Kill();
+                throw new ArgumentException("mkvExtract does not understand the stream");
+              }
+
               reader.BaseStream.Seek(0, SeekOrigin.Begin);
 
               var output = reader.ReadToEnd();
@@ -174,11 +212,19 @@ namespace NMaier.SimpleDlna.Utilities
                   file.CopyTo(fileContents);
                 }
                 File.Delete(tempFile);
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 return fileContents;
               }
             }
+            if (!p.HasExited)
+            {
+              p.Kill();
             }
           }
+        }
           }
       return null;
     }

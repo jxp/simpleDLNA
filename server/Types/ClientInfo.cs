@@ -1,3 +1,4 @@
+using NMaier.SimpleDlna.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,6 +6,7 @@ using System.Net;
 
 namespace NMaier.SimpleDlna.Server
 {
+
   /// <summary>
   ///   A software client, identified by the User-Agent headers it sends.
   ///   Many devices use more than one, e.g. one for browsing and another for
@@ -57,7 +59,30 @@ namespace NMaier.SimpleDlna.Server
 
     public DateTime LastSeen { get; internal set; }
 
-    public bool TranscodeAudio { get; set; }
+    public TranscodeMode? TranscodeAudio { get; set; }
+
+    public string TranscodeDescription {
+      get
+      {
+        if (!TranscodeAudio.HasValue)
+        {
+          return "";
+        }
+        return TranscodeAudio.ToString();
+      }
+      set
+      {
+        if (string.IsNullOrEmpty(value))
+        {
+          TranscodeAudio = null;
+        }
+        else
+        {
+          TranscodeAudio = (TranscodeMode)Enum.Parse(typeof(TranscodeMode), value);
+        }
+      }
+    }
+
 
     /// <summary>
     ///   The main User-Agent: the most specific (longest) one. Shorter ones,
@@ -102,7 +127,15 @@ namespace NMaier.SimpleDlna.Server
       if (description == null) {
         description = other.description;
       }
-      TranscodeAudio = TranscodeAudio || other.TranscodeAudio;
+      if (other.TranscodeAudio.HasValue && other.TranscodeAudio.Value == TranscodeMode.Advanced)
+      {
+        TranscodeAudio = other.TranscodeAudio.Value;
+      }
+      if (!TranscodeAudio.HasValue && other.TranscodeAudio.HasValue && other.TranscodeAudio.Value == TranscodeMode.Yes)
+      {
+        TranscodeAudio = other.TranscodeAudio.Value;
+      }
+
       if (other.LastSeen > LastSeen) {
         LastSeen = other.LastSeen;
         LastAddress = other.LastAddress;

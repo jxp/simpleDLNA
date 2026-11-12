@@ -53,15 +53,22 @@ namespace NMaier.SimpleDlna.FileMediaServer
               continue;
             }
             file.LoadCover();
-            using (var k = file.Cover.CreateContentStream())
+            try
             {
-              k.ReadByte();
+              using (var k = file.Cover.CreateContentStream())
+              {
+                k.ReadByte();
+              }
+              if (file.Cover != null)
+              {
+                // We have managed to load a cover, but there isn't one in the store
+                //  Re-store the file to update the cover in the store
+                store.MaybeStoreFile(file);
+              }
             }
-            if (file.Cover != null)
+            catch (TimeoutException)
             {
-              // We have managed to load a cover, but there isn't one in the store
-              //  Re-store the file to update the cover in the store
-              store.MaybeStoreFile(file);
+              // Loading timed out, will try again later
             }
 
           }

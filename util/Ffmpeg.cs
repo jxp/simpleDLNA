@@ -13,6 +13,12 @@ namespace NMaier.SimpleDlna.Utilities
 {
   using InfoCache = LeastRecentlyUsedDictionary<FileInfo, IDictionary<string, string>>;
 
+  public enum TranscodeMode
+  {
+    Yes,    // We should transcode using AAC as the format
+    Advanced     // We should use the Advanced AC3 codec (which is quicker to encode but not alway supported)
+  }
+
   public static class FFmpeg
   {
     private static readonly DirectoryInfo[] specialLocations =
@@ -224,6 +230,7 @@ namespace NMaier.SimpleDlna.Utilities
         sti.Arguments = $"-i \"{file.FullName}\"";
         sti.LoadUserProfile = false;
         sti.RedirectStandardError = true;
+        sti.WindowStyle = ProcessWindowStyle.Minimized;
         p.Start();
         IDictionary<string, string> rv = new Dictionary<string, string>();
 
@@ -233,9 +240,9 @@ namespace NMaier.SimpleDlna.Utilities
             p.StandardError.BaseStream, reader.BaseStream, 4096))
           {
             pump.Pump(null);
-            if (!p.WaitForExit(3000))
+            if (!p.WaitForExit(2000))
             {
-              throw new NotSupportedException("ffmpeg timed out");
+              throw new TimeoutException("ffmpeg timed out");
             }
             if (!pump.Wait(1000))
             {
@@ -285,6 +292,10 @@ namespace NMaier.SimpleDlna.Utilities
                 rv.Add("AUDIO_CHANNELS", channels.ToString());
               }
             }
+          }
+          if (!p.HasExited)
+          {
+            p.Kill();
           }
         }
         if (rv.Count == 0)
@@ -355,6 +366,7 @@ namespace NMaier.SimpleDlna.Utilities
           sti.Arguments = $"-i \"{file.FullName}\" -map s:0 -f srt pipe:";
           sti.LoadUserProfile = false;
           sti.RedirectStandardOutput = true;
+          sti.WindowStyle = ProcessWindowStyle.Minimized;
           p.Start();
 
           var lastPosition = 0L;
@@ -376,6 +388,10 @@ namespace NMaier.SimpleDlna.Utilities
               }
               if (!pump.Wait(2000))
               {
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 throw new NotSupportedException("ffmpeg pump timed out");
               }
               reader.BaseStream.Seek(0, SeekOrigin.Begin);
@@ -388,9 +404,17 @@ namespace NMaier.SimpleDlna.Utilities
               }
               if (!string.IsNullOrWhiteSpace(rv))
               {
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 return rv;
               }
             }
+          }
+          if (!p.HasExited)
+          {
+            p.Kill();
           }
         }
       }
@@ -462,7 +486,7 @@ namespace NMaier.SimpleDlna.Utilities
     ///   The output container is chosen from the output's extension.
     ///   progress, if given, is told how far through the source ffmpeg is.
     /// </summary>
-    public static void RemuxWithStereoAudio(FileInfo source, FileInfo output,
+    public static void RemuxWithStereoAudio(FileInfo source, FileInfo output, TranscodeMode audioMode,
       Action<TimeSpan> progress = null)
     {
       if (FFmpegExecutable == null)
@@ -480,8 +504,10 @@ namespace NMaier.SimpleDlna.Utilities
       // AC3 encodes about 4x faster than ffmpeg's built-in AAC encoder.
       // For clients that can't play AC3, use AAC instead:
       //   "-c:a:0 aac -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096"
-      const string stereo =
-        "-c:a:0 ac3 -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096";
+      const string stereoFormat =
+        "-c:a:0 {0} -ac:a:0 2 -b:a:0 192k -max_muxing_queue_size 4096";
+      var stereo = string.Format(stereoFormat, audioMode == TranscodeMode.Yes ? "aac" : "ac3");
+
       var attempts = new[]
       {
         // Everything, as the container allows (keeps subtitles etc.)
@@ -599,6 +625,7 @@ namespace NMaier.SimpleDlna.Utilities
           : "-progress pipe:1 " + arguments;
         sti.LoadUserProfile = false;
         sti.RedirectStandardError = true;
+        sti.WindowStyle = ProcessWindowStyle.Minimized;
         sti.RedirectStandardOutput = progress != null;
         if (progress != null)
         {

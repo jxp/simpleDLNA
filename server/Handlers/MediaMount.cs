@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
@@ -96,21 +96,28 @@ namespace NMaier.SimpleDlna.Server
         var id = path.Split('/')[1];
         InfoFormat("Serving file {0}", id);
         var item = GetItem(id) as IMediaResource;
-        if (request.Client?.TranscodeAudio == true) {
-          var stereo = StereoAudioTranscoder.GetStereoCopy(item);
-          if (stereo != null && stereo.IsComplete) {
-            InfoFormat(
-              "Serving {0} with stereo audio to {1}", id, request.Client);
-            return new ItemResponse(Prefix, request, item, stereo.File);
-          }
-          if (stereo != null) {
-            InfoFormat(
-              "Streaming {0} with stereo audio to {1} while it's being made",
-              id, request.Client);
-            return new ItemResponse(
-              Prefix, request, item,
-              () => new GrowingFileStream(
-                stereo.PartialPath, stereo.Completion));
+        // Check if the client has a user agent string
+        if (request.Client != null)
+        {
+          if (request.Client.TranscodeAudio.HasValue)
+          {
+            var stereo = StereoAudioTranscoder.GetStereoCopy(item, request.Client.TranscodeAudio.Value);
+            if (stereo != null && stereo.IsComplete)
+            {
+              InfoFormat(
+                "Serving {0} with stereo audio to {1}", id, request.Client);
+              return new ItemResponse(Prefix, request, item, stereo.File);
+            }
+            if (stereo != null)
+            {
+              InfoFormat(
+                "Streaming {0} with stereo audio to {1} while it's being made",
+                id, request.Client);
+              return new ItemResponse(
+                Prefix, request, item,
+                () => new GrowingFileStream(
+                  stereo.PartialPath, stereo.Completion));
+            }
           }
         }
         return new ItemResponse(Prefix, request, item);

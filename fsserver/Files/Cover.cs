@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.Serialization;
 using NMaier.SimpleDlna.Server;
@@ -24,6 +24,8 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
     private int width = 384;
 
+    private bool timedOut = false;
+
     private Cover(SerializationInfo info, StreamingContext ctx)
     {
       bytes = info.GetValue("b", typeof (byte[])) as byte[];
@@ -37,6 +39,7 @@ namespace NMaier.SimpleDlna.FileMediaServer
 
     internal Cover(FileInfo aFile, Stream aStream)
     {
+      timedOut = false;
       var thumb = thumber.GetThumbnail(
         aFile.FullName,
         DlnaMediaTypes.Image,
@@ -57,8 +60,14 @@ namespace NMaier.SimpleDlna.FileMediaServer
     private byte[] Bytes
     {
       get {
+        timedOut = false;
         var rv = ForceLoad();
         if (rv == null || rv.Length == 0) {
+          if (timedOut)
+          {
+            timedOut = false;
+            throw new TimeoutException();
+          }
           throw new NotSupportedException();
         }
         return rv;
@@ -169,6 +178,10 @@ namespace NMaier.SimpleDlna.FileMediaServer
           height = thumb.Height;
           width = thumb.Width;
         }
+      }
+      catch (TimeoutException ex)
+      {
+        timedOut = true;
       }
       catch (NotSupportedException ex) {
         Debug("Failed to load thumb for " + file.FullName, ex);

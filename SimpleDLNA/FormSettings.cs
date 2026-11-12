@@ -67,9 +67,9 @@ namespace NMaier.SimpleDlna.GUI
       details.AppendLine(
         $"Last address: {client.LastAddress?.ToString() ?? "unknown"}");
       details.AppendLine(
-        $"Last seen: {(client.LastSeen == DateTime.MinValue ? "never" : client.LastSeen.ToString("g"))}");
+        $"Last seen: {(client.LastSeen == DateTime.MinValue ? "never" : client.LastSeen.ToString("dd-MMM HH:mm"))}");
       details.Append(
-        $"Transcode audio: {(client.TranscodeAudio ? "Yes" : "No")}");
+        $"Stereo Only: {(client.TranscodeDescription)}");
       return details.ToString();
     }
 

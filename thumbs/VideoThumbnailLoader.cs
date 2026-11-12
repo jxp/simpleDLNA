@@ -80,14 +80,23 @@ namespace NMaier.SimpleDlna.Thumbnails
           }
           if (p.ExitCode != 0)
           {
+            p.Kill();
             throw new ArgumentException("ffmpeg does not understand the stream");
           }
           if (!pump.Wait(2000))
           {
+            if (!p.HasExited)
+            {
+              p.Kill();
+            }
             throw new ArgumentException("stream reading timed out");
           }
           if (thumb.Length == 0)
           {
+            if (!p.HasExited)
+            {
+              p.Kill();
+            }
             throw new ArgumentException("ffmpeg did not produce a result");
           }
 
@@ -102,11 +111,19 @@ namespace NMaier.SimpleDlna.Thumbnails
               try
               {
                 scaled.Save(rv, ImageFormat.Jpeg);
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 return rv;
               }
               catch (Exception)
               {
                 rv.Dispose();
+                if (!p.HasExited)
+                {
+                  p.Kill();
+                }
                 throw;
               }
             }
@@ -159,6 +176,7 @@ namespace NMaier.SimpleDlna.Thumbnails
         sti.LoadUserProfile = false;
         sti.RedirectStandardInput = true;
         sti.RedirectStandardOutput = true;
+        sti.WindowStyle = ProcessWindowStyle.Minimized;
         p.Start();
 
         var sp = new StreamPump(stream, p.StandardInput.BaseStream, 4096);
@@ -202,6 +220,7 @@ namespace NMaier.SimpleDlna.Thumbnails
             sti.Arguments = $"-v quiet -ss {best} -i \"{file.FullName}\" -an -frames:v 1 -f image2 pipe:";
             sti.LoadUserProfile = false;
             sti.RedirectStandardOutput = true;
+            sti.WindowStyle = ProcessWindowStyle.Minimized;
             p.Start();
 
             DebugFormat("Running: {0} {1}", sti.FileName, sti.Arguments);

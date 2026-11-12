@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -75,6 +75,11 @@ namespace NMaier.SimpleDlna.Thumbnails
             }
             return rv;
           }
+        }
+        catch (TimeoutException ex)
+        {
+          Debug($"{thumber.GetType()} failed to thumbnail a resource", ex);
+          throw;
         }
         catch (Exception ex) {
           Debug($"{thumber.GetType()} failed to thumbnail a resource", ex);

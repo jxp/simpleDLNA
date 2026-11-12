@@ -51,7 +51,7 @@ namespace NMaier.SimpleDlna.GUI
             this.gridClients = new System.Windows.Forms.DataGridView();
             this.colInfo = new System.Windows.Forms.DataGridViewImageColumn();
             this.colDescription = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.colTranscodeAudio = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.colTranscodeAudio = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.colLastSeen = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colUserAgent = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.groupBox1.SuspendLayout();
@@ -63,215 +63,233 @@ namespace NMaier.SimpleDlna.GUI
             this.tabClients.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gridClients)).BeginInit();
             this.SuspendLayout();
-            //
+            // 
             // groupBox1
-            //
+            // 
             this.groupBox1.Controls.Add(this.numericPort);
-            this.groupBox1.Location = new System.Drawing.Point(8, 8);
+            this.groupBox1.Location = new System.Drawing.Point(9, 11);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(303, 55);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.groupBox1.Size = new System.Drawing.Size(346, 73);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Port";
-            //
+            // 
             // numericPort
-            //
+            // 
             this.numericPort.DataBindings.Add(new System.Windows.Forms.Binding("Value", global::NMaier.SimpleDlna.GUI.Properties.Settings.Default, "port", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.numericPort.Location = new System.Drawing.Point(7, 22);
+            this.numericPort.Location = new System.Drawing.Point(8, 29);
+            this.numericPort.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.numericPort.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.numericPort.Name = "numericPort";
-            this.numericPort.Size = new System.Drawing.Size(80, 23);
+            this.numericPort.Size = new System.Drawing.Size(91, 27);
             this.numericPort.TabIndex = 0;
             this.toolTip.SetToolTip(this.numericPort, "Port of the http server.\r\nLeave at 0 to automatically have a port selected on sta" +
         "rtup.\r\n\r\n(Requires restart)");
             this.numericPort.Value = global::NMaier.SimpleDlna.GUI.Properties.Settings.Default.port;
-            //
+            // 
             // textCacheFile
-            //
+            // 
             this.textCacheFile.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::NMaier.SimpleDlna.GUI.Properties.Settings.Default, "cache", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.textCacheFile.Location = new System.Drawing.Point(7, 22);
+            this.textCacheFile.Location = new System.Drawing.Point(8, 29);
+            this.textCacheFile.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.textCacheFile.Name = "textCacheFile";
-            this.textCacheFile.Size = new System.Drawing.Size(194, 23);
+            this.textCacheFile.Size = new System.Drawing.Size(221, 27);
             this.textCacheFile.TabIndex = 1;
             this.textCacheFile.Text = global::NMaier.SimpleDlna.GUI.Properties.Settings.Default.cache;
             this.toolTip.SetToolTip(this.textCacheFile, "Location of the cache directory.\r\nLeave blank to use the default location (TEMP)." +
         "\r\n\r\n(Requires restart)");
-            //
+            // 
             // buttonDeleteClient
-            //
+            // 
             this.buttonDeleteClient.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.buttonDeleteClient.Enabled = false;
-            this.buttonDeleteClient.Location = new System.Drawing.Point(6, 264);
+            this.buttonDeleteClient.Location = new System.Drawing.Point(7, 352);
+            this.buttonDeleteClient.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.buttonDeleteClient.Name = "buttonDeleteClient";
-            this.buttonDeleteClient.Size = new System.Drawing.Size(87, 27);
+            this.buttonDeleteClient.Size = new System.Drawing.Size(99, 36);
             this.buttonDeleteClient.TabIndex = 1;
             this.buttonDeleteClient.Text = "Delete";
             this.toolTip.SetToolTip(this.buttonDeleteClient, "Forget the selected clients.\r\nA deleted client is added again the next time it co" +
         "nnects.");
             this.buttonDeleteClient.UseVisualStyleBackColor = true;
             this.buttonDeleteClient.Click += new System.EventHandler(this.buttonDeleteClient_Click);
-            //
+            // 
             // groupBox2
-            //
+            // 
             this.groupBox2.Controls.Add(this.buttonBrowseCacheFile);
             this.groupBox2.Controls.Add(this.textCacheFile);
-            this.groupBox2.Location = new System.Drawing.Point(8, 70);
+            this.groupBox2.Location = new System.Drawing.Point(9, 93);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(303, 55);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.groupBox2.Size = new System.Drawing.Size(346, 73);
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Cache directory";
-            //
+            // 
             // buttonBrowseCacheFile
-            //
-            this.buttonBrowseCacheFile.Location = new System.Drawing.Point(209, 20);
+            // 
+            this.buttonBrowseCacheFile.Location = new System.Drawing.Point(239, 27);
+            this.buttonBrowseCacheFile.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.buttonBrowseCacheFile.Name = "buttonBrowseCacheFile";
-            this.buttonBrowseCacheFile.Size = new System.Drawing.Size(87, 27);
+            this.buttonBrowseCacheFile.Size = new System.Drawing.Size(99, 36);
             this.buttonBrowseCacheFile.TabIndex = 0;
             this.buttonBrowseCacheFile.Text = "Browse";
             this.buttonBrowseCacheFile.UseVisualStyleBackColor = true;
             this.buttonBrowseCacheFile.Click += new System.EventHandler(this.buttonBrowseCacheFile_Click);
-            //
+            // 
             // checkStartMinimized
-            //
+            // 
             this.checkStartMinimized.AutoSize = true;
             this.checkStartMinimized.Checked = global::NMaier.SimpleDlna.GUI.Properties.Settings.Default.startminimized;
             this.checkStartMinimized.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::NMaier.SimpleDlna.GUI.Properties.Settings.Default, "startminimized", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.checkStartMinimized.Location = new System.Drawing.Point(15, 227);
+            this.checkStartMinimized.Location = new System.Drawing.Point(17, 303);
+            this.checkStartMinimized.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.checkStartMinimized.Name = "checkStartMinimized";
-            this.checkStartMinimized.Size = new System.Drawing.Size(109, 19);
+            this.checkStartMinimized.Size = new System.Drawing.Size(136, 24);
             this.checkStartMinimized.TabIndex = 4;
             this.checkStartMinimized.Text = "Start minimized";
             this.checkStartMinimized.UseVisualStyleBackColor = true;
-            //
+            // 
             // checkFileLogging
-            //
+            // 
             this.checkFileLogging.AutoSize = true;
             this.checkFileLogging.Checked = global::NMaier.SimpleDlna.GUI.Properties.Settings.Default.filelogging;
             this.checkFileLogging.DataBindings.Add(new System.Windows.Forms.Binding("Checked", global::NMaier.SimpleDlna.GUI.Properties.Settings.Default, "filelogging", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.checkFileLogging.Location = new System.Drawing.Point(15, 200);
+            this.checkFileLogging.Location = new System.Drawing.Point(17, 267);
+            this.checkFileLogging.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.checkFileLogging.Name = "checkFileLogging";
-            this.checkFileLogging.Size = new System.Drawing.Size(200, 19);
+            this.checkFileLogging.Size = new System.Drawing.Size(252, 24);
             this.checkFileLogging.TabIndex = 3;
             this.checkFileLogging.Text = "Log diagnostic messages to a file";
             this.checkFileLogging.UseVisualStyleBackColor = true;
-            //
+            // 
             // buttonOK
-            //
+            // 
             this.buttonOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonOK.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.buttonOK.Location = new System.Drawing.Point(526, 345);
+            this.buttonOK.Location = new System.Drawing.Point(601, 460);
+            this.buttonOK.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.buttonOK.Name = "buttonOK";
-            this.buttonOK.Size = new System.Drawing.Size(87, 27);
+            this.buttonOK.Size = new System.Drawing.Size(99, 36);
             this.buttonOK.TabIndex = 0;
             this.buttonOK.Text = "OK";
             this.buttonOK.UseVisualStyleBackColor = true;
             this.buttonOK.Click += new System.EventHandler(this.buttonOK_Click);
-            //
+            // 
             // checkAutoStart
-            //
+            // 
             this.checkAutoStart.AutoSize = true;
-            this.checkAutoStart.Location = new System.Drawing.Point(15, 254);
+            this.checkAutoStart.Location = new System.Drawing.Point(17, 339);
+            this.checkAutoStart.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.checkAutoStart.Name = "checkAutoStart";
-            this.checkAutoStart.Size = new System.Drawing.Size(203, 19);
+            this.checkAutoStart.Size = new System.Drawing.Size(253, 24);
             this.checkAutoStart.TabIndex = 5;
             this.checkAutoStart.Text = "Start automatically with Windows";
             this.checkAutoStart.UseVisualStyleBackColor = true;
             this.checkAutoStart.CheckedChanged += new System.EventHandler(this.checkAutoStart_CheckedChanged);
-            //
+            // 
             // groupBox3
-            //
+            // 
             this.groupBox3.Controls.Add(this.buttonBrowseMKV);
             this.groupBox3.Controls.Add(this.textMKVToolsDirectory);
-            this.groupBox3.Location = new System.Drawing.Point(8, 132);
+            this.groupBox3.Location = new System.Drawing.Point(9, 176);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(303, 58);
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.groupBox3.Size = new System.Drawing.Size(346, 77);
             this.groupBox3.TabIndex = 6;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "MKVToolnix Path (optional)";
-            //
+            // 
             // buttonBrowseMKV
-            //
-            this.buttonBrowseMKV.Location = new System.Drawing.Point(209, 20);
+            // 
+            this.buttonBrowseMKV.Location = new System.Drawing.Point(239, 27);
+            this.buttonBrowseMKV.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.buttonBrowseMKV.Name = "buttonBrowseMKV";
-            this.buttonBrowseMKV.Size = new System.Drawing.Size(87, 27);
+            this.buttonBrowseMKV.Size = new System.Drawing.Size(99, 36);
             this.buttonBrowseMKV.TabIndex = 3;
             this.buttonBrowseMKV.Text = "Browse";
             this.buttonBrowseMKV.UseVisualStyleBackColor = true;
-            //
+            // 
             // textMKVToolsDirectory
-            //
+            // 
             this.textMKVToolsDirectory.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::NMaier.SimpleDlna.GUI.Properties.Settings.Default, "mkvTools", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.textMKVToolsDirectory.Location = new System.Drawing.Point(7, 22);
+            this.textMKVToolsDirectory.Location = new System.Drawing.Point(8, 29);
+            this.textMKVToolsDirectory.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.textMKVToolsDirectory.Name = "textMKVToolsDirectory";
-            this.textMKVToolsDirectory.Size = new System.Drawing.Size(194, 23);
+            this.textMKVToolsDirectory.Size = new System.Drawing.Size(221, 27);
             this.textMKVToolsDirectory.TabIndex = 2;
-            //
+            // 
             // tabControl
-            //
-            this.tabControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
+            // 
+            this.tabControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl.Controls.Add(this.tabGeneral);
             this.tabControl.Controls.Add(this.tabClients);
-            this.tabControl.Location = new System.Drawing.Point(8, 8);
+            this.tabControl.Location = new System.Drawing.Point(9, 11);
+            this.tabControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(605, 329);
+            this.tabControl.Size = new System.Drawing.Size(691, 439);
             this.tabControl.TabIndex = 1;
-            //
+            // 
             // tabGeneral
-            //
+            // 
             this.tabGeneral.Controls.Add(this.groupBox1);
             this.tabGeneral.Controls.Add(this.groupBox2);
             this.tabGeneral.Controls.Add(this.groupBox3);
             this.tabGeneral.Controls.Add(this.checkFileLogging);
             this.tabGeneral.Controls.Add(this.checkStartMinimized);
             this.tabGeneral.Controls.Add(this.checkAutoStart);
-            this.tabGeneral.Location = new System.Drawing.Point(4, 24);
+            this.tabGeneral.Location = new System.Drawing.Point(4, 29);
+            this.tabGeneral.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.tabGeneral.Name = "tabGeneral";
-            this.tabGeneral.Padding = new System.Windows.Forms.Padding(3);
-            this.tabGeneral.Size = new System.Drawing.Size(597, 301);
+            this.tabGeneral.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.tabGeneral.Size = new System.Drawing.Size(683, 406);
             this.tabGeneral.TabIndex = 0;
             this.tabGeneral.Text = "General";
             this.tabGeneral.UseVisualStyleBackColor = true;
-            //
+            // 
             // tabClients
-            //
+            // 
             this.tabClients.Controls.Add(this.labelClientsHint);
             this.tabClients.Controls.Add(this.buttonDeleteClient);
             this.tabClients.Controls.Add(this.gridClients);
-            this.tabClients.Location = new System.Drawing.Point(4, 24);
+            this.tabClients.Location = new System.Drawing.Point(4, 29);
+            this.tabClients.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.tabClients.Name = "tabClients";
-            this.tabClients.Padding = new System.Windows.Forms.Padding(3);
-            this.tabClients.Size = new System.Drawing.Size(597, 301);
+            this.tabClients.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.tabClients.Size = new System.Drawing.Size(683, 406);
             this.tabClients.TabIndex = 1;
             this.tabClients.Text = "Clients";
             this.tabClients.UseVisualStyleBackColor = true;
-            //
+            // 
             // labelClientsHint
-            //
-            this.labelClientsHint.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
+            // 
+            this.labelClientsHint.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.labelClientsHint.Location = new System.Drawing.Point(99, 264);
+            this.labelClientsHint.Location = new System.Drawing.Point(113, 352);
             this.labelClientsHint.Name = "labelClientsHint";
-            this.labelClientsHint.Size = new System.Drawing.Size(492, 27);
+            this.labelClientsHint.Size = new System.Drawing.Size(562, 36);
             this.labelClientsHint.TabIndex = 2;
             this.labelClientsHint.Text = "Clients are identified by their User-Agents. Changes take effect immediately.";
             this.labelClientsHint.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            //
+            // 
             // gridClients
-            //
+            // 
             this.gridClients.AllowUserToAddRows = false;
             this.gridClients.AllowUserToResizeRows = false;
-            this.gridClients.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
+            this.gridClients.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.gridClients.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.gridClients.BackgroundColor = System.Drawing.SystemColors.Window;
             this.gridClients.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.gridClients.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
@@ -280,69 +298,89 @@ namespace NMaier.SimpleDlna.GUI
             this.colTranscodeAudio,
             this.colLastSeen,
             this.colUserAgent});
-            this.gridClients.Location = new System.Drawing.Point(6, 6);
+            this.gridClients.Location = new System.Drawing.Point(7, 8);
+            this.gridClients.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.gridClients.Name = "gridClients";
             this.gridClients.RowHeadersVisible = false;
+            this.gridClients.RowHeadersWidth = 51;
             this.gridClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.gridClients.Size = new System.Drawing.Size(585, 252);
+            this.gridClients.Size = new System.Drawing.Size(669, 336);
             this.gridClients.TabIndex = 0;
             this.gridClients.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.gridClients_CellClick);
             this.gridClients.CellToolTipTextNeeded += new System.Windows.Forms.DataGridViewCellToolTipTextNeededEventHandler(this.gridClients_CellToolTipTextNeeded);
-            this.gridClients.CurrentCellDirtyStateChanged +=new System.EventHandler(this.gridClients_CurrentCellDirtyStateChanged);
+            this.gridClients.CurrentCellDirtyStateChanged += new System.EventHandler(this.gridClients_CurrentCellDirtyStateChanged);
             this.gridClients.SelectionChanged += new System.EventHandler(this.gridClients_SelectionChanged);
             this.gridClients.UserDeletingRow += new System.Windows.Forms.DataGridViewRowCancelEventHandler(this.gridClients_UserDeletingRow);
-            //
-            // colDescription
-            //
+            // 
+            // colInfo
+            // 
             this.colInfo.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.colInfo.FillWeight = 24F;
             this.colInfo.HeaderText = "";
             this.colInfo.Image = global::NMaier.SimpleDlna.GUI.Properties.Resources.info;
-            this.colInfo.ImageLayout = System.Windows.Forms.DataGridViewImageCellLayout.Normal;
+            this.colInfo.MinimumWidth = 6;
             this.colInfo.Name = "colInfo";
             this.colInfo.ReadOnly = true;
             this.colInfo.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             this.colInfo.ToolTipText = "Client details";
             this.colInfo.Width = 24;
+            // 
+            // colDescription
+            // 
             this.colDescription.DataPropertyName = "Description";
-            this.colDescription.FillWeight = 35F;
+            this.colDescription.FillWeight = 175F;
             this.colDescription.HeaderText = "Description";
+            this.colDescription.MinimumWidth = 6;
             this.colDescription.Name = "colDescription";
             this.colDescription.ToolTipText = "A friendly name for the client. Clear it to use the User-Agent.";
-            //
+            this.colDescription.Width = 175;
+            // 
             // colTranscodeAudio
-            //
-            this.colTranscodeAudio.DataPropertyName = "TranscodeAudio";
-            this.colTranscodeAudio.FillWeight = 15F;
-            this.colTranscodeAudio.HeaderText = "Transcode audio";
+            // 
+            this.colTranscodeAudio.DataPropertyName = "TranscodeDescription";
+            this.colTranscodeAudio.FillWeight = 76F;
+            this.colTranscodeAudio.HeaderText = "Stereo Only";
+            this.colTranscodeAudio.Items.AddRange(new object[] {
+            "",
+            "Yes",
+            "Advanced"});
+            this.colTranscodeAudio.MinimumWidth = 6;
             this.colTranscodeAudio.Name = "colTranscodeAudio";
-            //
+            this.colTranscodeAudio.Resizable = System.Windows.Forms.DataGridViewTriState.True;
+            this.colTranscodeAudio.Width = 80;
+            // 
             // colLastSeen
-            //
+            // 
             this.colLastSeen.DataPropertyName = "LastSeen";
-            dataGridViewCellStyle1.Format = "g";
+            dataGridViewCellStyle1.Format = "dd-MMM HH:mm";
             this.colLastSeen.DefaultCellStyle = dataGridViewCellStyle1;
-            this.colLastSeen.FillWeight = 20F;
+            this.colLastSeen.FillWeight = 84F;
             this.colLastSeen.HeaderText = "Last seen";
+            this.colLastSeen.MinimumWidth = 6;
             this.colLastSeen.Name = "colLastSeen";
             this.colLastSeen.ReadOnly = true;
-            //
+            this.colLastSeen.Width = 80;
+            // 
             // colUserAgent
-            //
+            // 
             this.colUserAgent.DataPropertyName = "UserAgent";
-            this.colUserAgent.FillWeight = 30F;
+            this.colUserAgent.FillWeight = 208F;
             this.colUserAgent.HeaderText = "User-Agent";
+            this.colUserAgent.MinimumWidth = 6;
             this.colUserAgent.Name = "colUserAgent";
             this.colUserAgent.ReadOnly = true;
-            //
+            this.colUserAgent.Width = 208;
+            // 
             // FormSettings
-            //
+            // 
             this.AcceptButton = this.buttonOK;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(621, 380);
+            this.ClientSize = new System.Drawing.Size(710, 507);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.buttonOK);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.Name = "FormSettings";
             this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
@@ -382,12 +420,12 @@ namespace NMaier.SimpleDlna.GUI
     private System.Windows.Forms.TabPage tabGeneral;
     private System.Windows.Forms.TabPage tabClients;
     private System.Windows.Forms.DataGridView gridClients;
-    private System.Windows.Forms.DataGridViewImageColumn colInfo;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colDescription;
-    private System.Windows.Forms.DataGridViewCheckBoxColumn colTranscodeAudio;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colLastSeen;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colUserAgent;
     private System.Windows.Forms.Button buttonDeleteClient;
     private System.Windows.Forms.Label labelClientsHint;
+    private System.Windows.Forms.DataGridViewImageColumn colInfo;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colDescription;
+    private System.Windows.Forms.DataGridViewComboBoxColumn colTranscodeAudio;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colLastSeen;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colUserAgent;
   }
 }
